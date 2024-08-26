@@ -3,7 +3,6 @@ import json
 import copy
 import time
 import random
-from util import generate_sas_url
 from util import select_data_and_mark_as_processing
 from util import unmark_as_processing
 from util import save_result
@@ -33,20 +32,11 @@ blob_container_name     = os.getenv("BLOB_CONTAINER_NAME")
 
 def set_environment_variables(video_id:str, json_data:dict, use_re_writed_qa=False):
     index_name = "video-" + video_id[:8]
-    sas_url    = ""#generate_sas_url(account_name=blob_account_name, account_key=blob_account_key, container_name=blob_container_name, blob_name=video_id)
     os.environ["VIDEO_INDEX"]     = index_name
-    os.environ["VIDEO_SAS_TOKEN"] = sas_url
     os.environ["VIDEO_FILE_NAME"] = video_id
-
-    if use_re_writed_qa == False:
-        os.environ["QA_JSON_STR"] = json.dumps(json_data)
-    else:
-        json_data["rewrited_qa"]["truth"] = json_data["truth"]
-        os.environ["QA_JSON_STR"] = json.dumps(json_data["rewrited_qa"])
+    os.environ["QA_JSON_STR"] = json.dumps(json_data)
 
     print ("{} : {}".format(video_id, index_name))
-    print (sas_url)
-    print ("use Re-writed QA") if use_re_writed_qa else print ("use Original QA")
 
 
 # Loop through questions
@@ -65,6 +55,13 @@ while True:
         # Execute stage1
         print ("execute stage1")
         expert_info = execute_stage1()
+        
+        expert_info["ExpertName1Prompt"] = expert_info["ExpertName1Prompt"].replace('\n',' ')
+        expert_info["ExpertName2Prompt"] = expert_info["ExpertName2Prompt"].replace('\n',' ')
+        expert_info["ExpertName3Prompt"] = expert_info["ExpertName3Prompt"].replace('\n',' ')
+        
+        print (type(expert_info))
+        print (expert_info)
 
         # Execute stage2
         print ("execute stage2")
