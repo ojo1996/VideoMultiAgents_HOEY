@@ -1,5 +1,4 @@
 import os
-import sys
 import time
 import json
 import operator
@@ -10,19 +9,26 @@ from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain.output_parsers.openai_functions import JsonOutputFunctionsParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import BaseMessage, HumanMessage
-from langchain_openai import AzureChatOpenAI, OpenAI, ChatOpenAI
+from langchain_openai import ChatOpenAI
+from langchain_groq import ChatGroq
+from langchain_ollama import ChatOllama
+# for llama3
+# import transformers
+# import torch
+# from langchain_huggingface.llms.huggingface_pipeline import HuggingFacePipeline
+# from langchain_huggingface import ChatHuggingFace
 
 from typing import Annotated, Any, Dict, List, Optional, Sequence, TypedDict
-from tools import analyze_video, retrieve_video_clip_captions, analyze_video_gpt4o, dummy_tool
-from util import post_process, ask_gpt4, create_stage2_agent_prompt, create_stage2_organizer_prompt, create_question_sentence
+from tools import retrieve_video_clip_captions, analyze_video_gpt4o, dummy_tool, analyze_video_gpt4o_with_keyword
+from util import post_process, ask_gpt4_omni, create_stage2_agent_prompt, create_stage2_organizer_prompt, create_question_sentence
 
 
-azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-azure_openai_api_key  = os.getenv("AZURE_OPENAI_API_KEY")
-openai_api_key        = os.getenv("OPENAI_API_KEY")
+openai_api_key = os.getenv("OPENAI_API_KEY")
 
-tools = [analyze_video_gpt4o, retrieve_video_clip_captions]
+# tools = [analyze_video_gpt4o, retrieve_video_clip_captions]
+tools = [analyze_video_gpt4o_with_keyword, retrieve_video_clip_captions]
 
+# 
 # llm   = AzureChatOpenAI(
 #     azure_deployment='gpt-4',
 #     api_version='2023-12-01-preview',
@@ -39,14 +45,33 @@ llm = ChatOpenAI(
     streaming=False
     )
 
+llm_openai = ChatOpenAI(
+    api_key=openai_api_key,
+    model='gpt-4o',
+    temperature=0.0,
+    streaming=False
+    )
+
+# groq_api_key = os.getenv("GROQ_API_KEY")
+# llm_groq = ChatGroq(
+#     temperature=0,
+#     model="llama-3.1-70b-versatile",
+#     # model="llama3-groq-70b-8192-tool-use-preview",
+#     # model="llama3-8b-8192",
+#     api_key=groq_api_key
+# )
+
+# llm_ollama = ChatOllama(
+#     model="llama3.1:70b",
+#     temperature=0.0,
+#     streaming=False
+#     )
+
 
 def create_agent(llm, tools: list, system_prompt: str):
     prompt = ChatPromptTemplate.from_messages(
         [
-            (
-                "system",
-                system_prompt,
-            ),
+            ( "system", system_prompt, ),
             MessagesPlaceholder(variable_name="messages"),
             MessagesPlaceholder(variable_name="agent_scratchpad"),
         ]
@@ -61,7 +86,10 @@ def agent_node(state, agent, name):
     print(f" Executing {name} node!")
     print ("****************************************")
     result = agent.invoke(state)
+    # print ("****************************************")
+    # print ("result: ", result["output"])
     return {"messages": [HumanMessage(content=result["output"], name=name)]}
+
 
 class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], operator.add]
@@ -115,29 +143,27 @@ def execute_stage2(expert_info):
     )
 
     # Load taget question
-    qa_json_str = os.getenv("QA_JSON_STR")
-    video_filename  = os.getenv("VIDEO_FILE_NAME")
-    target_question_data = json.loads(qa_json_str)
+    target_question_data = json.loads(os.getenv("QA_JSON_STR"))
 
-    print ("****************************************")
-    print (" Next Question: {}".format(video_filename))
-    print ("****************************************")
-    print (create_question_sentence(target_question_data))
+    # print ("****************************************")
+    # print (" Next Question: {}".format(os.getenv("VIDEO_FILE_NAME")))
+    # print ("****************************************")
+    # print (create_question_sentence(target_question_data))
 
-    agent1_prompt = create_stage2_agent_prompt(target_question_data, expert_info["ExpertName1Prompt"], shuffle_questions=False)
-    agent1 = create_agent(llm, tools, system_prompt=agent1_prompt)
+    agent1_prompt = create_stage2_agent_prompt(target_question_data, expert_info["ExpertName1Prompt"] + "Be sure to Call video analysis tools.", shuffle_questions=False)
+    agent1 = create_agent(llm_openai, tools, system_prompt=agent1_prompt)
     agent1_node = functools.partial(agent_node, agent=agent1, name="agent1")
 
-    agent2_prompt = create_stage2_agent_prompt(target_question_data, expert_info["ExpertName2Prompt"], shuffle_questions=False)
-    agent2 = create_agent(llm, tools, system_prompt=agent2_prompt)
+    agent2_prompt = create_stage2_agent_prompt(target_question_data, expert_info["ExpertName2Prompt"] + "Be sure to Call video analysis tools.", shuffle_questions=False)
+    agent2 = create_agent(llm_openai, tools, system_prompt=agent2_prompt)
     agent2_node = functools.partial(agent_node, agent=agent2, name="agent2")
 
-    agent3_prompt = create_stage2_agent_prompt(target_question_data, expert_info["ExpertName3Prompt"], shuffle_questions=False)
-    agent3 = create_agent(llm, [retrieve_video_clip_captions], system_prompt=agent3_prompt)
+    agent3_prompt = create_stage2_agent_prompt(target_question_data, expert_info["ExpertName3Prompt"] + "Be sure to Call video analysis tools.", shuffle_questions=False)
+    agent3 = create_agent(llm_openai, [retrieve_video_clip_captions], system_prompt=agent3_prompt)
     agent3_node = functools.partial(agent_node, agent=agent3, name="agent3")
 
     organizer_prompt = create_stage2_organizer_prompt(target_question_data, shuffle_questions=False)
-    organizer_agent = create_agent(llm, [dummy_tool], system_prompt=organizer_prompt)
+    organizer_agent = create_agent(llm_openai, [dummy_tool], system_prompt=organizer_prompt)
     organizer_node = functools.partial(agent_node, agent=organizer_agent, name="organizer")
 
     # for debugging
@@ -148,15 +174,15 @@ def execute_stage2(expert_info):
         "organizer_prompt": organizer_prompt
     }
 
-    print ("******************** Agent1 Prompt ********************")
-    print (agent1_prompt)
-    print ("******************** Agent2 Prompt ********************")
-    print (agent2_prompt)
-    print ("******************** Agent3 Prompt ********************")
-    print (agent3_prompt)
-    print ("******************** Organizer Prompt ********************")
-    print (organizer_prompt)
-    print ("****************************************")
+    # print ("******************** Agent1 Prompt ********************")
+    # print (agent1_prompt)
+    # print ("******************** Agent2 Prompt ********************")
+    # print (agent2_prompt)
+    # print ("******************** Agent3 Prompt ********************")
+    # print (agent3_prompt)
+    # print ("******************** Organizer Prompt ********************")
+    # print (organizer_prompt)
+    # print ("****************************************")
     # return
 
     # Create the workflow
@@ -177,7 +203,6 @@ def execute_stage2(expert_info):
     graph = workflow.compile()
 
     # Execute the graph
-    # input_message = create_question_sentence(target_question_data) + "\n\nExclude options that contain unnecessary embellishments, such as subjective adverbs or clauses that cannot be objectively determined, and consider only the remaining options."
     input_message = create_question_sentence(target_question_data)
     print ("******** Stage2 input_message **********")
     print (input_message)
@@ -190,7 +215,7 @@ def execute_stage2(expert_info):
     prediction_num = post_process(agents_result["messages"][-1].content)
     if prediction_num == -1:
         prompt = agents_result["messages"][-1].content + "\n\nPlease retrieve the final answer from the sentence above. Your response should be one of the following options: Option A, Option B, Option C, Option D, Option E."
-        response_data = ask_gpt4(openai_deployment_name="gpt-4", openai_api_version='2023-12-01-preview', openai_api_key=azure_openai_api_key, openai_api_base_url=azure_openai_endpoint, prompt_text=prompt)
+        response_data = ask_gpt4_omni(openai_api_key=openai_api_key, prompt_text=prompt)
         prediction_num = post_process(response_data)
     if prediction_num == -1:
         print ("***********************************************************")

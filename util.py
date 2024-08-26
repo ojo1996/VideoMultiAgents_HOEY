@@ -1,7 +1,6 @@
 import os
 import time
 import requests
-from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions, BlobClient
 import datetime
 from retry import retry
 from openai import AzureOpenAI, OpenAI
@@ -12,35 +11,6 @@ import glob
 import base64
 import portalocker
 from mimetypes import guess_type
-
-
-def generate_sas_url(account_name, account_key, container_name, blob_name, expiry_hours=120):
-    blob_service_client = BlobServiceClient(account_url=f"https://{account_name}.blob.core.windows.net", credential=account_key)
-
-    blob_client = blob_service_client.get_blob_client(container=container_name, blob=blob_name + ".mp4")
-
-    if blob_client.exists() == False:
-        print(f"The specified blob does not exist: {blob_name}")
-        return None
-
-    start_time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=1)
-    expiry_time = start_time + datetime.timedelta(days=90)
-
-    sas_token = generate_blob_sas(
-        account_name=blob_client.account_name,
-        container_name=blob_client.container_name,
-        blob_name=blob_client.blob_name,
-        account_key=account_key,
-        permission=BlobSasPermissions(read=True),
-        expiry=expiry_time,
-        start=start_time
-    )
-
-    sas_url = f"{blob_client.url}?{sas_token}"
-
-    # Create a BlobClient object with SAS authorization
-    blob_client_sas = BlobClient.from_blob_url(blob_url=sas_url)
-    return sas_url
 
 
 # Function to encode a local image into data URL 
@@ -58,104 +28,50 @@ def local_image_to_data_url(image_path):
     return f"data:{mime_type};base64,{base64_encoded_data}"
 
 
-@retry(tries=3, delay=10)
-def ask_gpt4_vision(openai_api_base_url="", openai_deployment_name="", openai_api_key="", openai_api_version="", acv_base_url="", acv_api_key="", index_name="", sas_url="", prompt_text=""):
+@retry(tries=3, delay=3)
+def ask_gpt4_omni(openai_api_key="", prompt_text="", temperature=0.0, image_dir="", vid="", frame_num=18, detail="low", use_selected_images=None):
+    model_name = "gpt-4o"
+    # model_name = "gpt-4o-mini"
 
-    client = AzureOpenAI(
-            api_key=openai_api_key,
-            api_version=openai_api_version,
-            base_url=f"{openai_api_base_url}openai/deployments/{openai_deployment_name}/extensions",
-        )
+    client = OpenAI(api_key=openai_api_key)
 
-    response = client.chat.completions.create(
-        model=openai_deployment_name,
-        timeout=600,
-        messages=[
-                { "role": "system", "content": "You are a helpful assistant." },
-                { "role": "user", "content": [  
-                    {
-                        "type": "acv_document_id",
-                        "acv_document_id": index_name
-                    },
-                    { 
-                        "type": "text", 
-                        "text": prompt_text
-                    }
-                ] } 
+    if image_dir != "" and vid != "":
+        frame_path_list = sorted(glob.glob(os.path.join(image_dir, vid, "*")))
+        valid_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tiff"}
+        frame_path_list = [path for path in frame_path_list if os.path.splitext(path)[1].lower() in valid_extensions]
+
+        frames = []
+        if use_selected_images is not None:
+            for image_path in use_selected_images:
+                data_url = local_image_to_data_url(image_path)
+                frames.append({ "type": "image_url", "image_url": { "url": data_url, "detail": detail } })
+        else:
+            step = len(frame_path_list) // frame_num
+            start = random.randint(0, int(len(frame_path_list) / frame_num))
+            for i in range(start, len(frame_path_list), step):
+                data_url = local_image_to_data_url(frame_path_list[i])
+                frames.append({ "type": "image_url", "image_url": { "url": data_url, "detail": detail } })
+
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=[
+                { "role": "system", "content": "You are a helpful expert in first person view video analysis." },
+                { "role": "user", "content": prompt_text },
+                { "role": "user", "content": frames }
             ],
-            extra_body={
-                "dataSources": [
-                    {
-                        "type": "AzureComputerVisionVideoIndex",
-                        "parameters": {
-                            "computerVisionApiKey":acv_api_key,
-                            "computerVisionBaseUrl":acv_base_url,
-                            "indexName": index_name,
-                            "videoUrls": [sas_url]
-                        }
-                    }],
-                "enhancements": {
-                    "video": {
-                        "enabled": True
-                    }
-                }
-            },
-            max_tokens=3000
+            max_tokens=3000,
+            temperature=temperature
         )
-    # print (response)
-    return response.choices[0].message.content
-
-
-@retry(tries=3, delay=3)
-def ask_gpt4_omni(openai_api_key="", prompt_text="", image_dir="", vid="", temperature=0.0, frame_num=18, detail="low"):
-    client = OpenAI(
-            api_key=openai_api_key,
+    else:
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=[
+                { "role": "system", "content": "You are a helpful expert in first person view video analysis." },
+                { "role": "user", "content": prompt_text }
+            ],
+            max_tokens=3000,
+            temperature=temperature
         )
-
-    frame_path_list = sorted(glob.glob(os.path.join(image_dir, vid, "*")))
-    valid_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tiff"}
-    frame_path_list = [path for path in frame_path_list if os.path.splitext(path)[1].lower() in valid_extensions]
-
-    frames = []
-    step = len(frame_path_list) // frame_num
-    start = random.randint(0, int(len(frame_path_list) / frame_num))
-    for i in range(start, len(frame_path_list), step):
-        data_url = local_image_to_data_url(frame_path_list[i])
-        frames.append({ "type": "image_url", "image_url": { "url": data_url, "detail": detail } })
-
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            { "role": "system", "content": "You are a helpful expert in first person view video analysis." },
-            { "role": "user", "content": prompt_text },
-            { "role": "user", "content": frames }
-        ],
-        max_tokens=3000,
-        temperature=temperature
-    )
-
-    return response.choices[0].message.content
-
-
-@retry(tries=3, delay=3)
-def ask_gpt4(openai_api_base_url="", openai_deployment_name="", openai_api_key="", openai_api_version="", prompt_text=""):
-
-    client = AzureOpenAI(
-        api_key=openai_api_key,
-        api_version=openai_api_version,
-        base_url=f"{openai_api_base_url}openai/deployments/{openai_deployment_name}",
-    )
-
-    response = client.chat.completions.create(
-        model=openai_deployment_name,
-        messages=[
-            { "role": "system", "content": "You are a helpful assistant." },
-            { "role": "user", "content": prompt_text }
-        ],
-        max_tokens=3000,
-        temperature=0.7
-    )
-    # print (response)
 
     return response.choices[0].message.content
 
@@ -217,45 +133,6 @@ def create_question_sentence(question_data:dict, shuffle_questions=False):
         for option in options:
             prompt += "\n・" + option + ": " + question_data["option " + str(options_order.index(option))]
     return prompt
-
-
-def re_write_question_sentence(question_data:dict, azure_openai_api_key:str, azure_openai_endpoint:str):
-    original_qa = create_question_sentence(question_data)
-
-    prompt = original_qa
-    prompt += "\n\nIn the sentences above, 'C' represents the 'person filming' (the person capturing the video), and 'o' represents 'other person' or 'someone else'."
-    prompt += "\nPlease read the above question and OPTION sentences and rewrite them in sentences that are easy to read and solve the question. In doing so, please exclude any redundant sentences between the OPTION sentences."
-    prompt += "\n\nYour Output format should be as follows\n"
-    prompt += "\n{\n    \"question\": \"<Your rewritten question sentence>\","
-    prompt += "\n    \"option 0\": \"<Rewritten option 0>\","
-    prompt += "\n    \"option 1\": \"<Rewritten option 1>\","
-    prompt += "\n    \"option 2\": \"<Rewritten option 2>\","
-    prompt += "\n    \"option 3\": \"<Rewritten option 3>\","
-    prompt += "\n    \"option 4\": \"<Rewritten option 4>\"\n}"
-
-    print (prompt)
-    try:
-        response = ask_gpt4(
-                    openai_deployment_name="gpt-4",
-                    openai_api_version='2023-12-01-preview',
-                    openai_api_key=azure_openai_api_key,
-                    openai_api_base_url=azure_openai_endpoint,
-                    prompt_text=prompt
-                )
-        rewrited_qa = json.loads(response)
-    except Exception as e:
-        print ("Error: ", e)
-        time.sleep(1)
-        return re_write_question_sentence(question_data, azure_openai_api_key, azure_openai_endpoint)
-
-    # Check and post process
-    # check the qa contain "Question" and "Option A" ~ "Option E"
-    if "question" in rewrited_qa and "option 0" in rewrited_qa and "option 1" in rewrited_qa and "option 2" in rewrited_qa and "option 3" in rewrited_qa and "option 4" in rewrited_qa:
-        return rewrited_qa
-    else:
-        print ("Error: The response does not contain the required keys.")
-        time.sleep(1)
-        return re_write_question_sentence(question_data, azure_openai_api_key, azure_openai_endpoint)
 
 
 def create_stage2_agent_prompt(question_data:dict, generated_expert_prompt="", shuffle_questions=False):
@@ -441,131 +318,3 @@ def save_re_write_question_and_options(file_path, video_id:str, rewrited_qa:dict
         portalocker.lock(f, portalocker.LOCK_EX)
         json.dump(questions, f, indent=4)
         portalocker.unlock(f)
-
-
-def select_data_and_mark_as_processing_for_rewrite_qa(file_path):
-    print ("select_data_and_mark_as_processing_rewrite_qa")
-    dict_data = read_json_file(file_path)
-
-    for i, (video_id, json_data) in enumerate(dict_data.items()):
-
-        if "rewrited_qa" not in json_data.keys():
-            dict_data[video_id]["rewrited_qa"] = -2
-            with open(file_path, "w") as f:
-                portalocker.lock(f, portalocker.LOCK_EX)
-                json.dump(dict_data, f, indent=4)
-                portalocker.unlock(f)
-            return video_id, json_data
-    return None, None
-
-
-def check_index_exists(vision_api_endpoint, vision_api_key, index_name):
-    url = f"{vision_api_endpoint}/computervision/retrieval/indexes/{index_name}?api-version=2023-05-01-preview"
-    headers = {"Ocp-Apim-Subscription-Key": vision_api_key}
-    response = requests.get(url, headers=headers)
-
-    if response.status_code == 200:
-        print ("Index exists. :{}".format(index_name))
-        return True
-    elif response.status_code == 404:
-        print ("Index does not exist. :{}".format(index_name))
-        return False
-    else:
-        response.raise_for_status()
-
-
-def get_video_index(vision_api_endpoint, vision_api_key):
-    url = f"{vision_api_endpoint}/computervision/retrieval/indexes?api-version=2023-05-01-preview"
-    headers = {"Ocp-Apim-Subscription-Key": vision_api_key, "Content-Type": "application/json"}
-    response = requests.get(url, headers=headers)
-    return response
-
-
-def delete_video_index(vision_api_endpoint, vision_api_key, index_name):
-    url = f"{vision_api_endpoint}/computervision/retrieval/indexes/{index_name}?api-version=2023-05-01-preview"
-    headers = {"Ocp-Apim-Subscription-Key": vision_api_key, "Content-Type": "application/json"}
-    response = requests.delete(url, headers=headers)
-    return response
-
-
-def delete_all_video_index(vision_api_endpoint, vision_api_key):
-    while True:
-        response = get_video_index(vision_api_endpoint, vision_api_key)
-        index_datas = response.json()
-
-        if len(index_datas["value"]) == 0:
-            print ("delete_all_video_index done.")
-            return
-
-        for name in index_datas["value"]:
-            response = delete_video_index(vision_api_endpoint, vision_api_key, name["name"])
-            print ("{} deleted".format(name["name"]))
-
-
-def create_video_index(vision_api_endpoint, vision_api_key, index_name):
-    url = f"{vision_api_endpoint}/computervision/retrieval/indexes/{index_name}?api-version=2023-05-01-preview"
-    headers = {"Ocp-Apim-Subscription-Key": vision_api_key, "Content-Type": "application/json"}
-    data = {
-        "features": [
-            {"name": "vision", "modelVersion": "2023-05-31", "domain": "surveillance"}
-        ]
-    }
-    response = requests.put(url, headers=headers, json=data)
-    return response
-
-
-def add_video_to_index(vision_api_endpoint, vision_api_key, index_name, video_url):
-    url = f"{vision_api_endpoint}/computervision/retrieval/indexes/{index_name}/ingestions/AOAIChatDocument?api-version=2023-05-01-preview"
-    headers = {"Ocp-Apim-Subscription-Key": vision_api_key, "Content-Type": "application/json"}
-    data = {
-        'videos': [{'mode': 'add', 'documentId': index_name, 'documentUrl': video_url}],
-        "filterDefectedFrames": False,
-        "generateInsightIntervals": False,
-        "includeSpeechTranscrpt": True,
-        "moderation": False
-    }
-    response = requests.put(url, headers=headers, json=data)
-    return response
-
-
-def delete_video_ingestion(vision_api_endpoint, vision_api_key, index_name):
-    url = f"{vision_api_endpoint}/computervision/retrieval/indexes/{index_name}/ingestions/AOAIChatDocument?api-version=2023-05-01-preview"
-    headers = {"Ocp-Apim-Subscription-Key": vision_api_key}
-    response = requests.delete(url, headers=headers)
-    return response
-
-
-def check_video_ingestions(vision_api_endpoint, vision_api_key, index_name):
-    url = f"{vision_api_endpoint}/computervision/retrieval/indexes/{index_name}/ingestions/AOAIChatDocument?api-version=2023-05-01-preview"
-    headers = {"Ocp-Apim-Subscription-Key": vision_api_key}
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        state_data = response.json()
-        if state_data['state'] == 'Completed':
-            print('Ingestion completed.')
-            return True
-    print(state_data['state'])
-    return False
-
-
-def wait_for_ingestion_completion(vision_api_endpoint, vision_api_key, index_name, max_retries=300):
-    url = f"{vision_api_endpoint}/computervision/retrieval/indexes/{index_name}/ingestions/AOAIChatDocument?api-version=2023-05-01-preview"
-    headers = {"Ocp-Apim-Subscription-Key": vision_api_key}
-    retries = 0
-    while retries < max_retries:
-        time.sleep(3)
-        response = requests.get(url, headers=headers)
-        if response.status_code == 200:
-            state_data = response.json()
-            if state_data['state'] == 'Completed':
-                print(state_data)
-                print('Ingestion completed.')
-                return True
-            elif state_data['state'] == 'Failed':
-                print(state_data)
-                print('Ingestion failed.')
-                return False
-            else:
-                print(state_data['state'])
-        retries += 1
-    return False

@@ -16,42 +16,108 @@ def dummy_tool() -> str:
     return "hello world"
 
 
-@tool
-def analyze_video(gpt_prompt:str) -> str:
+from PIL import Image
+import os
+import torch
+from transformers import CLIPProcessor, CLIPModel
+from util import ask_gpt4_omni
+
+# モデルファイルのキャッシュディレクトリを設定
+cache_dir = "/root/project_ws/transformers_cache"
+
+# CLIPモデルとプロセッサを読み込む
+model = CLIPModel.from_pretrained("openai/clip-vit-large-patch14", cache_dir=cache_dir)
+processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14", cache_dir=cache_dir)
+
+def select_relevant_frames(image_dir: str, keyword: str, top_n: int = 90) -> list:
     """
-    Analyze video tool.
+    Select the top N frames related to a specific keyword using the CLIP model.
 
     Parameters:
-    prompt (str): In the GPT prompt, You must include the Q&A you want to solve and the perspective from which you want GPT to view the video.For example, if you want GPT to watch the video from the perspective of a household expert, you could write: "You are a household expert. From the perspective of someone doing household chores, please consider which of the following option seems most plausible. Question...
+    image_dir (str): Directory containing the frames.
+    keyword (str): The keyword to search for.
+    top_n (int): The number of top frames to select.
+
+    Returns:
+    list: A list of file paths to the selected frames.
+    """
+    # ディレクトリ内の画像ファイルのリストを取得
+    image_files = [f for f in os.listdir(image_dir) if f.endswith(('.jpg', '.jpeg', '.png'))]
+    
+    # 画像を読み込み
+    images = [Image.open(os.path.join(image_dir, file)) for file in image_files]
+    
+    # 画像とキーワードをプロセッサで処理
+    inputs = processor(text=[keyword], images=images, return_tensors="pt", padding=True)
+    
+    # モデルを介したフォワードパス
+    outputs = model(**inputs)
+    
+    # 画像とテキストの類似性スコアを取得
+    logits_per_image = outputs.logits_per_image
+    
+    # 画像間での確率を計算
+    probs_across_images = logits_per_image.softmax(dim=0)
+    
+    # 各画像のファイル名と確率をリストに格納
+    image_probabilities = [(image_files[i], probs_across_images[i].item()) for i in range(len(image_files))]
+    
+    # 確率に基づいて画像をソート
+    image_probabilities.sort(key=lambda x: x[1], reverse=True)
+    
+    # 上位N枚の画像を選択
+    selected_files = [os.path.join(image_dir, file) for file, _ in image_probabilities[:top_n]]
+    
+    return selected_files
+
+@tool
+def analyze_video_gpt4o_with_keyword(gpt_prompt: str, keyword: str) -> str:
+    """
+    Analyze video tool with CLIP frame selection.
+
+    Parameters:
+    gpt_prompt (str): In the GPT prompt, You must include 5 questions based on original questions and options.
+                    For example, if the question asks about the purpose of the video and OptionA is “C is looking for a T-shirt” and OptionB is “C is cleaning up the room,
+                    OptionA is “C is looking for a T-shirt?” and OptionB is “C is tidying the room?” and so on. 
+                    The questions should be Yes/No questions whenever possible.
+                    Also, please indicate what role you would like the respondent to play in answering the questions.
+
+    keyword (str): The keyword to search for relevant frames. 
+                   For example, you have to use this format "a photo of a {XXXX}".
+                   Note : Always include an identifiable noun, and do not use words like "action" or "C".
 
     Returns:
     str: The analysis result.
     """
+    
+    print ("Called the tool of analyze_video_gpt4o_with_keyword.")
+    print ("gpt_prompt: ", gpt_prompt)
+    print ("keyword: ", keyword)
+    
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    video_file_name = os.getenv("VIDEO_FILE_NAME")
 
-    from util import ask_gpt4_vision
+    # フレームを選択
+    image_dir = "/root/ms1_nas/public/Ego4D/egoschema/images"
+    video_file_name = os.getenv("VIDEO_FILE_NAME")
+    image_dir = os.path.join(image_dir, video_file_name)
+    selected_frames = select_relevant_frames(image_dir=image_dir, keyword=keyword, top_n=90)
+    
+    # print(f"Selected Frames: {selected_frames}")
 
-    azure_openai_endpoint   = os.getenv("AZURE_OPENAI_ENDPOINT")
-    azure_openai_api_key    = os.getenv("AZURE_OPENAI_API_KEY")
-    azure_openai_version    = os.getenv("AZURE_OPENAI_VERSION")
-    azure_openai_model_name = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME")
-    acv_base_url            = os.getenv("ACV_BASE_URL")
-    acv_api_key             = os.getenv("ACV_API_KEY")
-    video_index             = os.getenv("VIDEO_INDEX")
-    video_sas_token         = os.getenv("VIDEO_SAS_TOKEN")
+    # GPT-4 Omni APIにフレームを渡す
+    result = ask_gpt4_omni(
+        openai_api_key=openai_api_key,
+        prompt_text=gpt_prompt,
+        image_dir=image_dir,
+        vid=video_file_name,
+        temperature=0.7,
+        frame_num=90,
+        use_selected_images=selected_frames
+    )
+    print("result: ", result)
+    return result
 
-    print ("Called the tool of analyze_video.")
-    print (gpt_prompt)
-    return ask_gpt4_vision(
-                openai_api_base_url=azure_openai_endpoint,
-                openai_deployment_name=azure_openai_model_name,
-                openai_api_key=azure_openai_api_key,
-                openai_api_version=azure_openai_version,
-                acv_base_url=acv_base_url,
-                acv_api_key=acv_api_key,
-                index_name=video_index,
-                sas_url=video_sas_token,
-                prompt_text=gpt_prompt
-            )
 
 
 @tool
@@ -82,7 +148,7 @@ def analyze_video_gpt4o(gpt_prompt:str) -> str:
     result = ask_gpt4_omni(
                 openai_api_key=openai_api_key,
                 prompt_text=gpt_prompt,
-                image_dir="/home/project_ws/images",
+                image_dir="/root/ms1_nas/public/Ego4D/egoschema/images",
                 vid=video_file_name,
                 temperature=0.7,
                 frame_num=90
@@ -111,7 +177,7 @@ def retrieve_video_clip_captions(gpt_prompt:str) -> str:
 
     video_filename = os.getenv("VIDEO_FILE_NAME")
 
-    with open("/home/project_ws/EgoSchemaVQA/LLoVi/data/egoschema/lavila_fullset.json", "r") as f:
+    with open("/root/project_ws/VideoMultiAgents/data/egoschema/lavila_fullset.json", "r") as f:
         captions_data = json.load(f)
 
     captions = captions_data.get(video_filename, [])
@@ -144,19 +210,11 @@ def retrieve_video_clip_captions(gpt_prompt:str) -> str:
     prompt += "\n[Instructions]\n"
     prompt += gpt_prompt    
 
-    print ("gpt_prompt: ", prompt)
+    # print ("gpt_prompt: ", prompt)
 
-    azure_openai_api_key    = os.getenv("AZURE_OPENAI_API_KEY")
-    azure_openai_endpoint   = os.getenv("AZURE_OPENAI_ENDPOINT")
-
-    from util import ask_gpt4
-    result = ask_gpt4(
-                    openai_deployment_name="gpt-4",
-                    openai_api_version='2023-12-01-preview',
-                    openai_api_key=azure_openai_api_key,
-                    openai_api_base_url=azure_openai_endpoint,
-                    prompt_text=prompt
-                )
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    from util import ask_gpt4_omni
+    result = ask_gpt4_omni(openai_api_key=openai_api_key, prompt_text=prompt)
     print ("result: ", result)
 
     return result
@@ -178,7 +236,7 @@ def retrieve_video_clip_captions_without_llm() -> list[str]:
 
     video_filename = os.getenv("VIDEO_FILE_NAME")
 
-    with open("/home/project_ws/EgoSchemaVQA/LLoVi/data/egoschema/lavila_fullset.json", "r") as f:
+    with open("/root/project_ws/VideoMultiAgents/data/egoschema/lavila_fullset.json", "r") as f:
         captions_data = json.load(f)
 
     captions = captions_data.get(video_filename, [])
