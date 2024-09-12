@@ -1,4 +1,4 @@
-FROM pytorch/pytorch:2.1.2-cuda12.1-cudnn8-devel
+FROM nvidia/cuda:12.5.1-cudnn-devel-ubuntu22.04
 
 ENV http_proxy="http://proxy.mei.co.jp:8080/"
 ENV https_proxy="http://proxy.mei.co.jp:8080/"
@@ -36,6 +36,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zip \
     && apt-get -y clean \
     && rm -rf /var/lib/apt/lists/*
+
+RUN pip install torch==2.4.0
+RUN curl -fsSL https://ollama.com/install.sh | sh
 
 RUN pip3 install -U pip
 COPY requirements.txt requirements.txt

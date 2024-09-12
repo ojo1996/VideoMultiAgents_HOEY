@@ -4,8 +4,7 @@ version: "2.4"
 
 services:
   video_multi_agents_env:
-    container_name: video_multi_agents_env
-    hostname: video_multi_agents_env
+    hostname: video_multi_agents
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
     runtime: nvidia
@@ -14,6 +13,9 @@ services:
       context: .
       dockerfile: ./Dockerfile
     shm_size: '64gb'
+    network_mode: host
     volumes:
       - /mnt/ssd/data/kugou:/root/project_ws
       - /mnt/ms1_nas/:/root/ms1_nas
+    env_file:
+      - .env

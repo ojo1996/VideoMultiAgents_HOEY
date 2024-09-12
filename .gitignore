@@ -1,2 +1,10 @@
 /dataset/**
 /data/**
+
+
+/vlap/lightning_logs/**
+
+
+**.json
+**.ckpt
+**.pth
