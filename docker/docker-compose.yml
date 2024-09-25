@@ -15,7 +15,7 @@ services:
     shm_size: '64gb'
     network_mode: host
     volumes:
-      - /mnt/ssd/data/kugou:/root/project_ws
-      - /mnt/ms1_nas/:/root/ms1_nas
-    env_file:
-      - .env
+      - /home/azureuser/project_ws/:/root/project_ws
+      - /mnt/ramdisk/:/root/ms1_nas
+    # env_file:
+      # - .env

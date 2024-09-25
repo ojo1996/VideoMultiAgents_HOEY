@@ -1,7 +1,7 @@
 FROM nvidia/cuda:12.5.1-cudnn-devel-ubuntu22.04
 
-ENV http_proxy="http://proxy.mei.co.jp:8080/"
-ENV https_proxy="http://proxy.mei.co.jp:8080/"
+# ENV http_proxy="http://proxy.mei.co.jp:8080/"
+# ENV https_proxy="http://proxy.mei.co.jp:8080/"
 
 # nvidia-container-runtime
 ENV NVIDIA_VISIBLE_DEVICES ${NVIDIA_VISIBLE_DEVICES:-all}

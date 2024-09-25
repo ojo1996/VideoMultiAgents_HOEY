@@ -20,3 +20,9 @@ pandas==2.2.2
 pillow==10.4.0
 sentencepiece==0.2.0
 protobuf==5.27.3
+pytorch-lightning==2.4.0
+rich==13.8.1
+azure-core==1.31.0
+azureml-core==1.57.0.post1
+azureml-mlflow==1.57.0.post1
+mlflow==2.16.2

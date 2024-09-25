@@ -113,10 +113,10 @@ if __name__ == "__main__":
     parser.add_argument('--num_epochs', type=int, default=100)
     parser.add_argument('--learning_rate', type=float, default=1e-5)
     parser.add_argument('--hidden_dim', type=int, default=768)
-    parser.add_argument('--batch_size', type=int, default=32)
-    parser.add_argument('--csv_file', type=str, default='/root/project_ws/VideoMultiAgents/dataset/nextqa/nextqa/train.csv')
-    parser.add_argument('--features_dir', type=str, default='/root/project_ws/VideoMultiAgents/dataset/nextqa/NExTVideoFeatures')
-    parser.add_argument('--json_file', type=str, default='/root/project_ws/VideoMultiAgents/dataset/nextqa/nextqa/map_vid_vidorID.json')
+    parser.add_argument('--batch_size', type=int, default=64)
+    parser.add_argument('--csv_file', type=str, default='/root/ms1_nas/nextqa/nextqa/train.csv')
+    parser.add_argument('--features_dir', type=str, default='/root/ms1_nas/nextqa/NExTVideoFeatures')
+    parser.add_argument('--json_file', type=str, default='/root/ms1_nas/nextqa/nextqa/map_vid_vidorID.json')
 
     args = parser.parse_args()
     
@@ -128,22 +128,26 @@ if __name__ == "__main__":
 
     # MLFlowの設定 https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.loggers.mlflow.html
     current_time = datetime.now(pytz.utc).astimezone(pytz.timezone('Asia/Tokyo')).strftime("%Y-%m-%d %H:%M:%S")
-    mlflow_logger = MLFlowLogger(experiment_name='vlap', run_name=current_time, tracking_uri=workspace.get_mlflow_tracking_uri(), log_model=True)
+    mlflow_logger = MLFlowLogger(experiment_name='vlap-hpc3', run_name=current_time, tracking_uri=workspace.get_mlflow_tracking_uri(), log_model=True)
 
     data_module = NextQADataModule(csv_file=args.csv_file, features_dir=args.features_dir, json_file=args.json_file, batch_size=args.batch_size)
-    model       = CombinedModelLightning(hidden_dim=args.hidden_dim, learning_rate=args.learning_rate)
+    model = CombinedModelLightning(hidden_dim=args.hidden_dim, learning_rate=args.learning_rate)
+    
+    # if you want resume training
+    checkpoint = torch.load('weights/v2/model-epoch=6.ckpt', map_location='cuda:0')
+    model.load_state_dict(checkpoint['state_dict'], strict=False)
 
     # Prepare callbacks
     callbacks=[
         RichProgressBar(),
-        ModelCheckpoint(dirpath='./', filename=f'model-{{epoch}}', save_weights_only=True, save_last=True),
+        ModelCheckpoint(dirpath='./', filename=f'model-{{epoch}}', save_weights_only=True, save_last=False, save_top_k=-1),
         # EarlyStopping(monitor="Rank1ACC", min_delta=0.00, patience=40, verbose=False, mode="max")
     ]
 
     trainer = pl.Trainer(
         max_epochs   = args.num_epochs,
         accelerator  = 'gpu',
-        devices      = [0, 1],
+        devices      = [0, 1, 2, 3],
         strategy     = DDPStrategy(find_unused_parameters=True),
         callbacks    = callbacks,
         logger       = mlflow_logger
