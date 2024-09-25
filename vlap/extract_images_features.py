@@ -51,10 +51,10 @@ transform = transforms.Compose([
 ])
 
 # CSVファイルの読み込み
-csv_data = pd.read_csv('/root/project_ws/VideoMultiAgents/dataset/nextqa/nextqa/train.csv')
+csv_data = pd.read_csv('/root/ms1_nas/nextqa/nextqa/train.csv')
 
 # JSONファイルの読み込み
-json_data = json.load(open('/root/project_ws/VideoMultiAgents/dataset/nextqa/nextqa/map_vid_vidorID.json'))
+json_data = json.load(open('/root/ms1_nas/nextqa/nextqa/map_vid_vidorID.json'))
 
 # CSVファイルの各行をループ処理
 for index, row in csv_data.iterrows():
@@ -63,12 +63,12 @@ for index, row in csv_data.iterrows():
         print(f"Error: No mapping found for video ID {row['video']}")
         continue
     
-    videofile_path = f'/root/project_ws/VideoMultiAgents/dataset/nextqa/NExTVideo/{video_id}.mp4'
+    videofile_path = f'/root/ms1_nas/nextqa/NExTVideo/{video_id}.mp4'
     if not os.path.exists(videofile_path):
         print(f"Error: Cannot open video file {videofile_path}")
         continue
     
-    output_folder = f'/root/project_ws/VideoMultiAgents/dataset/nextqa/NExTVideoFrames/{video_id}'
+    output_folder = f'/root/ms1_nas/nextqa/NExTVideoFrames/{video_id}'
     
     if os.path.exists(output_folder) and len(os.listdir(output_folder)) == 32:
         # print(f"Skip: Folder {output_folder} already exists and contains 32 frames")
@@ -77,7 +77,7 @@ for index, row in csv_data.iterrows():
         sample_frames_from_video(videofile_path, output_folder, num_frames=32)
 
     # create folder for features file if not exists
-    output_folder_for_binary = f'/root/project_ws/VideoMultiAgents/dataset/nextqa/NExTVideoFeatures/{video_id}'
+    output_folder_for_binary = f'/root/ms1_nas/nextqa/NExTVideoFeatures/{video_id}'
     if not os.path.exists(output_folder_for_binary):
         os.makedirs(output_folder_for_binary)
     # Check if features file already exists
@@ -103,3 +103,26 @@ for index, row in csv_data.iterrows():
     print (features_batch.shape)
     torch.save(features_batch.cpu(), feature_filepath)
     print(f"Features have been saved to {feature_filepath}")
+
+
+# import os
+
+# def find_zero_byte_pt_files(root_dir):
+#     zero_byte_files = []
+#     for dirpath, dirnames, filenames in os.walk(root_dir):
+#         for filename in filenames:
+#             if filename.endswith('.pt'):
+#                 filepath = os.path.join(dirpath, filename)
+#                 if os.path.getsize(filepath) == 0:
+#                     zero_byte_files.append(filepath)
+#     return zero_byte_files
+
+# if __name__ == '__main__':
+#     features_root_dir = '/root/ms1_nas/nextqa/NExTVideoFeatures/'
+#     zero_byte_files = find_zero_byte_pt_files(features_root_dir)
+#     if zero_byte_files:
+#         print("以下の .pt ファイルはサイズが0バイトで、読み込みに失敗する可能性があります:")
+#         for filepath in zero_byte_files:
+#             print(filepath)
+#     else:
+#         print("サイズが0バイトの .pt ファイルは見つかりませんでした。")
