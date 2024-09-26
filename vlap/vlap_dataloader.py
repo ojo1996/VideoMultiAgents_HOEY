@@ -52,10 +52,10 @@ class NextQADataset(Dataset):
             'options': options  # そのままの選択肢テキスト
         }
 
-def get_nextqa_loader(csv_file, features_dir, json_file, batch_size=8, shuffle=True):
+def get_nextqa_loader(csv_file, features_dir, json_file, batch_size=8, shuffle=True, pin_memory=True):
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
     dataset = NextQADataset(csv_file, features_dir, json_file, tokenizer)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, pin_memory=pin_memory)
     
     return dataloader
 
