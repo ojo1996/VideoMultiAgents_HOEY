@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.5.1-cudnn-devel-ubuntu22.04
+FROM nvidia/cuda:12.4.0-devel-ubuntu22.04
 
 # ENV http_proxy="http://proxy.mei.co.jp:8080/"
 # ENV https_proxy="http://proxy.mei.co.jp:8080/"
@@ -39,6 +39,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN pip install torch==2.4.0
 RUN curl -fsSL https://ollama.com/install.sh | sh
+RUN ln -s /usr/bin/python3 /usr/bin/python
 
 RUN pip3 install -U pip
 COPY requirements.txt requirements.txt

@@ -25,8 +25,8 @@ from util import post_process, ask_gpt4_omni, create_stage2_agent_prompt, create
 
 openai_api_key = os.getenv("OPENAI_API_KEY")
 
-# tools = [analyze_video_gpt4o, retrieve_video_clip_captions]
-tools = [analyze_video_gpt4o_with_keyword, retrieve_video_clip_captions]
+tools = [analyze_video_gpt4o, retrieve_video_clip_captions]
+# tools = [analyze_video_gpt4o_with_keyword, retrieve_video_clip_captions]
 
 # 
 # llm   = AzureChatOpenAI(

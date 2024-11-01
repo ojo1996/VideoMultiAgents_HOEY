@@ -3,7 +3,7 @@ fairscale==0.4.13
 fire==0.6.0
 tiktoken==0.7.0  # Updated to satisfy langchain-openai dependencies
 blobfile==2.1.1
-flash-attn==0.2.4
+#flash-attn==0.2.4
 transformers==4.43
 bitsandbytes==0.43.1
 accelerate==0.32.1
