@@ -45,10 +45,13 @@ Set the appropriate file paths inside main.py
 ## 4 Build & Run
 
 ### 4.1 Build the container
-docker compose up
+
+`docker compose up`
 
 ### 4.2 Run the container
-docker exec -it docker-video_multi_agents_env-1 /bin/bash
+
+`docker exec -it docker-video_multi_agents_env-1 /bin/bash`
 
 ### 4.3 Run the python script from inside the cntainer
-python main.py --dataset=DATASET
+
+`python main.py --dataset=DATASET`
