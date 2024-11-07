@@ -6,6 +6,11 @@ import argparse
 import pdb
 from util import *
 
+# files containes the evaluation data (questions with answers)
+ANNO_FILE_PATH_DICT =    {
+    "egoschema": "/root/nas_Ego4D/egoschema/llovi_data/egoschema/subset_anno.json",
+    "nextqa"   : "/root/ms1_nas/nextqa/nextqa.json"
+    }
 
 def eval_qa_egoschema(data):
     num_valids = 0
@@ -39,21 +44,20 @@ def eval_qa_egoschema_from_file(fp):
         data = data['data']
     eval_qa_egoschema(data)
 
-def eval_qa_nextqa(anno_file_path, preds):
+def eval_qa_nextqa(anno_file_path):
     '''
     This function was adapted from https://github.com/doc-doc/NExT-QA/blob/main/eval_mc.py
     '''
     map_name = {'CW': 'Why', 'CH': 'How', 'TN': 'Bef&Aft', 'TC': 'When', 'DC': 'Cnt', 'DL': 'Loc', 'DO': 'Other', 'C': 'Acc_C', 'T': 'Acc_T', 'D': 'Acc_D'}
-    sample_list = pd.read_csv(anno_file_path)
+    data = load_json(anno_file_path)
     group = {'CW':[], 'CH':[], 'TN':[], 'TC':[], 'DC':[], 'DL':[], 'DO':[]}
-    for id, row in sample_list.iterrows():
-        qns_id = str(row['video']) + '_' + str(row['qid'])
-        if qns_id not in preds:
-            continue
-        qtype = str(row['type'])
-        #(combine temporal qns of previous and next as 'TN')
-        if qtype == 'TP': qtype = 'TN'
-        group[qtype].append(qns_id)
+    for qns_id, el in data.items():
+        # qns_id = str(row['video']) + '_' + str(row['qid'])
+        if 'pred' in el.keys() and el['pred'] >= 0:
+            qtype = str(el['type'])
+            #(combine temporal qns of previous and next as 'TN')
+            if qtype == 'TP': qtype = 'TN'
+            group[qtype].append(qns_id)
 
     group_acc = {'CW': 0, 'CH': 0, 'TN': 0, 'TC': 0, 'DC': 0, 'DL': 0, 'DO': 0}
     group_cnt = {'CW': 0, 'CH': 0, 'TN': 0, 'TC': 0, 'DC': 0, 'DL': 0, 'DO': 0}
@@ -67,8 +71,8 @@ def eval_qa_nextqa(anno_file_path, preds):
         for qid in qns_ids:
 
             cnt += 1
-            answer = preds[qid]['truth']
-            pred = preds[qid]['pred']
+            answer = data[qid]['truth']
+            pred = data[qid]['pred']
 
             if answer == pred: 
                 acc += 1
@@ -98,7 +102,7 @@ def eval_qa_nextqa(anno_file_path, preds):
     stat['Acc'] = all_acc*100.0/all_cnt
     print('')
     print('Acc: {:.2f}'.format(all_acc*100.0/all_cnt))
-    stat['data'] = preds
+    stat['data'] = pred
     return stat
 
 def eval_qa_nextqa_from_file(anno_file_path, pred_file_path):
@@ -307,18 +311,44 @@ def eval_egoschema_cats(data_path, cats_path):
 
 
 if __name__ == '__main__':
+
+    available_datasets = [
+        'nextqa',
+        'egoschema',
+    ]
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--function",
+        "--dataset",
         required=True,
         type=str,
+        choices=available_datasets,
+        help=f"Available datasets: {', '.join(available_datasets)}"
     )
-    args, unknown = parser.parse_known_args()
-    function_arg_names = unknown[0::2]
-    function_arg_values = unknown[1::2]
-    function_args = {function_arg_names[i]: function_arg_values[i] for i in range(len(function_arg_names))}
-    print()
-    globals()[args.function](**function_args)
+    
+    args = parser.parse_args()
+    dataset = args.dataset    
+
+    dataset_to_function = {"egoschema": "eval_qa_egoschema_from_file", "nextqa": "eval_qa_nextqa"}
+    anno_file_path = ANNO_FILE_PATH_DICT[dataset]
+    function = dataset_to_function[dataset]
+    globals()[function](anno_file_path)
+
+
+
+# if __name__ == '__main__':
+#     parser = argparse.ArgumentParser()
+#     parser.add_argument(
+#         "--function",
+#         required=True,
+#         type=str,
+#     )
+#     args, unknown = parser.parse_known_args()
+#     function_arg_names = unknown[0::2]
+#     function_arg_values = unknown[1::2]
+#     function_args = {function_arg_names[i]: function_arg_values[i] for i in range(len(function_arg_names))}
+#     print()
+#     globals()[args.function](**function_args)
 
 
 '''

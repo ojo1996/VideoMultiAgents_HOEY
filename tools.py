@@ -142,16 +142,18 @@ def analyze_video_gpt4o(gpt_prompt:str) -> str:
 
     openai_api_key          = os.getenv("OPENAI_API_KEY")
     video_file_name         = os.getenv("VIDEO_FILE_NAME")
+    frame_num               = int(os.getenv("FRAME_NUM"))
+    image_dir               = os.getenv("IMAGES_DIR_PATH")
 
     print ("Called the tool of analyze_video_gpt4o.")
 
     result = ask_gpt4_omni(
                 openai_api_key=openai_api_key,
                 prompt_text=gpt_prompt,
-                image_dir="/root/ms1_nas/public/Ego4D/egoschema/images",
+                image_dir=image_dir,
                 vid=video_file_name,
                 temperature=0.7,
-                frame_num=90
+                frame_num=frame_num 
             )
     print ("result: ", result)
     return result
@@ -175,20 +177,21 @@ def retrieve_video_clip_captions(gpt_prompt:str) -> str:
 
     print("Called the Image captioning tool.")
 
-    video_filename = os.getenv("VIDEO_FILE_NAME")
-
-    with open("/root/project_ws/VideoMultiAgents/data/egoschema/lavila_fullset.json", "r") as f:
+    video_index = os.getenv("VIDEO_INDEX")
+    captions_file = os.getenv("CAPTIONS_FILE")
+    with open(captions_file, "r") as f:
         captions_data = json.load(f)
 
-    captions = captions_data.get(video_filename, [])
+    captions = captions_data.get(video_index, [])
     result = []
     previous_caption = None
 
     for i, caption in enumerate(captions):
 
-        # Remove the 'C' marker from the caption
-        caption = caption.replace("#C ", "")
-        caption = caption.replace("#c ", "")
+        if os.environ["DATASET"] == "egoschema":
+            # Remove the 'C' marker from the caption
+            caption = caption.replace("#C ", "")
+            caption = caption.replace("#c ", "")
 
         # Calculate the timestamp in hh:mm:ss format
         timestamp = str(timedelta(seconds=i))

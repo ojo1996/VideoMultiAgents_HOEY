@@ -250,7 +250,8 @@ def read_json_file(file_path):
 def select_data_and_mark_as_processing(file_path):
     print ("select_data_and_mark_as_processing")
     dict_data = read_json_file(file_path)
-
+    true_count = 0
+    valid_count = 0
     for i, (video_id, json_data) in enumerate(dict_data.items()):
 
         if "pred" not in json_data.keys():
@@ -259,8 +260,21 @@ def select_data_and_mark_as_processing(file_path):
                 portalocker.lock(f, portalocker.LOCK_EX)
                 json.dump(dict_data, f, indent=4)
                 portalocker.unlock(f)
+            accuracy = (true_count/valid_count*100) if valid_count > 0 else 0
+            print(f"Accuracy till Question no. {i}:========================================= {accuracy:.2f}%")
             return video_id, json_data
-    return None, None
+
+        if dict_data[video_id]["pred"] == -2:
+            accuracy = (true_count/valid_count*100) if valid_count > 0 else 0
+            print(f"Accuracy till Question no. {i}:========================================= {accuracy:.2f}%")
+            return video_id, json_data
+        if i == len(dict_data) - 1:
+            return None, None
+        else:
+            valid_count += 1
+            if dict_data[video_id]["pred"] == dict_data[video_id]["truth"]:
+                true_count += 1
+            continue
 
 
 def unmark_as_processing(file_path, video_id):

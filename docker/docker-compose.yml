@@ -15,7 +15,8 @@ services:
     shm_size: '64gb'
     network_mode: host
     volumes:
-      - /home/azureuser/project_ws/:/root/project_ws
-      - /mnt/ramdisk/:/root/ms1_nas
+      - /mnt/ms1_nas/Ego4D/:/root/nas_Ego4D
+      - /mnt/ms1_nas/nextqa/:/root/nas_nextqa
+      - ../:/root
     # env_file:
       # - .env
