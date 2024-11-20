@@ -28,16 +28,6 @@ openai_api_key = os.getenv("OPENAI_API_KEY")
 tools = [analyze_video_gpt4o, retrieve_video_clip_captions]
 # tools = [analyze_video_gpt4o_with_keyword, retrieve_video_clip_captions]
 
-# 
-# llm   = AzureChatOpenAI(
-#     azure_deployment='gpt-4',
-#     api_version='2023-12-01-preview',
-#     azure_endpoint=azure_openai_endpoint,
-#     api_key=azure_openai_api_key,
-#     temperature=0.7,
-#     streaming=False
-#     )
-
 llm = ChatOpenAI(
     api_key=openai_api_key,
     model='gpt-4o',

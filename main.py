@@ -46,22 +46,13 @@ os.environ["IMAGES_DIR_PATH"]       = IMAGES_DIR_PATH_DICT[dataset]
 os.environ["FRAME_NUM"]             = str(FRAME_NUM_DICT[dataset])
 
 map_vid = "/root/nas_nextqa/nextqa/map_vid_vidorID.json"
-with open(map_vid, "r") as f:
-    map_vid = json.load(f)
+if dataset == "nextqa":
+    with open(map_vid, "r") as f:
+        map_vid = json.load(f)
 
 # Sleep for a random duration between 0 and 10 seconds
 sleep_time = random.uniform(0, 10)
 time.sleep(sleep_time)
-
-# azure_openai_endpoint   = os.getenv("AZURE_OPENAI_ENDPOINT")
-# azure_openai_api_key    = os.getenv("AZURE_OPENAI_API_KEY")
-# azure_openai_version    = os.getenv("AZURE_OPENAI_VERSION")
-# azure_openai_model_name = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME")
-# acv_base_url            = os.getenv("ACV_BASE_URL")
-# acv_api_key             = os.getenv("ACV_API_KEY")
-# blob_account_name       = os.getenv("BLOB_ACCOUNT_NAME")
-# blob_account_key        = os.getenv("BLOB_ACCOUNT_KEY")
-# blob_container_name     = os.getenv("BLOB_CONTAINER_NAME")
 
 def set_environment_variables(video_id:str, json_data:dict, dataset, use_re_writed_qa=False):
     if dataset == "egoschema": index_name = video_id
@@ -82,6 +73,9 @@ while True:
 
     try:
         video_id, json_data = select_data_and_mark_as_processing(QUESTION_FILE_PATH)
+        
+        print ("video_id: ", video_id)
+        print ("json_data: ", json_data)
 
         if video_id is None: # All data has been processed
             break
