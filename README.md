@@ -1,6 +1,6 @@
-# VideoMultiAgents
+# VideoMultiAgent
 
-VideoMultiAgents for Long-Term video understanding.
+VideoMultiAgent for Long-Term video understanding.
 
 ## 1 Prerequisites
 
@@ -36,7 +36,7 @@ Then use the extract_images_features.py to convert Video files for NextQA datase
 
 ### 3.1 set the environment variables
 
-Our model uses the Azure OpenAI. So, Please set the access infomation into the Dockerfile.
+Our model uses the OpenAI. So, Please set the access infomation into the Dockerfile.
 
 ### 3.2 set the variables
 
@@ -54,4 +54,4 @@ Set the appropriate file paths inside main.py
 
 ### 4.3 Run the python script from inside the cntainer
 
-`python main.py --dataset=DATASET`
+`python3 main.py --dataset=DATASET`
