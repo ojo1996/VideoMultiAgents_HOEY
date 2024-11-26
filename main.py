@@ -50,8 +50,9 @@ if dataset == "nextqa":
     with open(map_vid, "r") as f:
         map_vid = json.load(f)
 
-# Sleep for a random duration between 0 and 10 seconds
+# Sleep for a random duration (0–10 seconds) to avoid simultaneous access to the JSON file by multiple containers
 sleep_time = random.uniform(0, 10)
+print ("Sleeping for {} seconds".format(sleep_time))
 time.sleep(sleep_time)
 
 def set_environment_variables(video_id:str, json_data:dict, dataset, use_re_writed_qa=False):
@@ -92,7 +93,6 @@ while True:
         expert_info["ExpertName2Prompt"] = expert_info["ExpertName2Prompt"].replace('\n',' ')
         expert_info["ExpertName3Prompt"] = expert_info["ExpertName3Prompt"].replace('\n',' ')
         
-        print (type(expert_info))
         print (expert_info)
 
 
