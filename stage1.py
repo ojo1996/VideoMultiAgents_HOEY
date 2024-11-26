@@ -19,12 +19,12 @@ def execute_stage1():
     print (prompt)
 
     response_data = ask_gpt4_omni(
-                openai_api_key=openai_api_key,
-                prompt_text=prompt,
-                image_dir=image_dir,
-                vid=video_filename,
-                temperature=0.7,
-                frame_num=frame_num
+                openai_api_key = openai_api_key,
+                prompt_text    = prompt,
+                image_dir      = image_dir,
+                vid            = video_filename,
+                temperature    = 0.7,
+                frame_num      = frame_num
             )
     
     print (response_data)

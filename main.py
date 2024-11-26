@@ -39,11 +39,18 @@ FRAME_NUM_DICT =    {
     "nextqa"   : 32
     }
 
-os.environ["DATASET"]               = dataset
-os.environ["CAPTIONS_FILE"]         = CAPTIONS_FILE_DICT[dataset]
-QUESTION_FILE_PATH                  = QUESTION_FILE_PATH_DICT[dataset]
-os.environ["IMAGES_DIR_PATH"]       = IMAGES_DIR_PATH_DICT[dataset]
-os.environ["FRAME_NUM"]             = str(FRAME_NUM_DICT[dataset])
+# Summary cache path
+SUMMARY_CACHE_JSON_PATH = {
+    "egoschema": "/root/VideoMultiAgents/summary_cache_egoschema.json",
+    "nextqa"   : "/root/VideoMultiAgents/summary_cache_nextqa.json"
+}
+
+os.environ["DATASET"]                 = dataset
+os.environ["CAPTIONS_FILE"]           = CAPTIONS_FILE_DICT[dataset]
+QUESTION_FILE_PATH                    = QUESTION_FILE_PATH_DICT[dataset]
+os.environ["IMAGES_DIR_PATH"]         = IMAGES_DIR_PATH_DICT[dataset]
+os.environ["FRAME_NUM"]               = str(FRAME_NUM_DICT[dataset])
+os.environ["SUMMARY_CACHE_JSON_PATH"] = SUMMARY_CACHE_JSON_PATH[dataset]
 
 map_vid = "/root/nas_nextqa/nextqa/map_vid_vidorID.json"
 if dataset == "nextqa":

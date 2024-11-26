@@ -66,7 +66,7 @@ def ask_gpt4_omni(openai_api_key="", prompt_text="", temperature=0.0, image_dir=
         response = client.chat.completions.create(
             model=model_name,
             messages=[
-                { "role": "system", "content": "You are a helpful expert in first person view video analysis." },
+                { "role": "system", "content": "You are a helpful assistant." },
                 { "role": "user", "content": prompt_text }
             ],
             max_tokens=3000,

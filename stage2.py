@@ -38,7 +38,7 @@ llm = ChatOpenAI(
 llm_openai = ChatOpenAI(
     api_key=openai_api_key,
     model='gpt-4o',
-    temperature=0.0,
+    temperature=0.7,
     streaming=False
     )
 
@@ -140,15 +140,15 @@ def execute_stage2(expert_info):
     # print ("****************************************")
     # print (create_question_sentence(target_question_data))
 
-    agent1_prompt = create_stage2_agent_prompt(target_question_data, expert_info["ExpertName1Prompt"] + "Be sure to Call video analysis tools.", shuffle_questions=False)
+    agent1_prompt = create_stage2_agent_prompt(target_question_data, expert_info["ExpertName1Prompt"], shuffle_questions=False)
     agent1 = create_agent(llm_openai, tools, system_prompt=agent1_prompt)
     agent1_node = functools.partial(agent_node, agent=agent1, name="agent1")
 
-    agent2_prompt = create_stage2_agent_prompt(target_question_data, expert_info["ExpertName2Prompt"] + "Be sure to Call video analysis tools.", shuffle_questions=False)
+    agent2_prompt = create_stage2_agent_prompt(target_question_data, expert_info["ExpertName2Prompt"], shuffle_questions=False)
     agent2 = create_agent(llm_openai, tools, system_prompt=agent2_prompt)
     agent2_node = functools.partial(agent_node, agent=agent2, name="agent2")
 
-    agent3_prompt = create_stage2_agent_prompt(target_question_data, expert_info["ExpertName3Prompt"] + "Be sure to Call video analysis tools.", shuffle_questions=False)
+    agent3_prompt = create_stage2_agent_prompt(target_question_data, expert_info["ExpertName3Prompt"], shuffle_questions=False)
     agent3 = create_agent(llm_openai, [retrieve_video_clip_captions], system_prompt=agent3_prompt)
     agent3_node = functools.partial(agent_node, agent=agent3, name="agent3")
 
@@ -164,15 +164,15 @@ def execute_stage2(expert_info):
         "organizer_prompt": organizer_prompt
     }
 
-    # print ("******************** Agent1 Prompt ********************")
-    # print (agent1_prompt)
-    # print ("******************** Agent2 Prompt ********************")
-    # print (agent2_prompt)
-    # print ("******************** Agent3 Prompt ********************")
-    # print (agent3_prompt)
-    # print ("******************** Organizer Prompt ********************")
-    # print (organizer_prompt)
-    # print ("****************************************")
+    print ("******************** Agent1 Prompt ********************")
+    print (agent1_prompt)
+    print ("******************** Agent2 Prompt ********************")
+    print (agent2_prompt)
+    print ("******************** Agent3 Prompt ********************")
+    print (agent3_prompt)
+    print ("******************** Organizer Prompt ********************")
+    print (organizer_prompt)
+    print ("****************************************")
     # return
 
     # Create the workflow
