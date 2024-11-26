@@ -171,6 +171,19 @@ def create_stage2_organizer_prompt(question_data:dict, shuffle_questions=False):
     return organizer_prompt
 
 
+def set_environment_variables(dataset:str, video_id:str, qa_json_data:dict):
+    if dataset == "egoschema": index_name = video_id
+    if dataset == "nextqa"   : index_name = video_id.split("_")[0]
+
+    if dataset == "egoschema": os.environ["VIDEO_FILE_NAME"] = video_id
+    if dataset == "nextqa"   : os.environ["VIDEO_FILE_NAME"] = map_vid[video_id.split("_")[0]]
+
+    os.environ["VIDEO_INDEX"]     = index_name
+    os.environ["QA_JSON_STR"]     = json.dumps(qa_json_data)
+
+    print ("{} : {}".format(video_id, index_name))
+
+
 def post_process(response):
     response = response.lower()
     option_patterns = {

@@ -7,6 +7,7 @@ import argparse
 from util import select_data_and_mark_as_processing
 from util import unmark_as_processing
 from util import save_result
+from util import set_environment_variables
 from stage1 import execute_stage1
 from stage2 import execute_stage2
 
@@ -62,18 +63,6 @@ sleep_time = random.uniform(0, 10)
 print ("Sleeping for {} seconds".format(sleep_time))
 time.sleep(sleep_time)
 
-def set_environment_variables(video_id:str, json_data:dict, dataset, use_re_writed_qa=False):
-    if dataset == "egoschema": index_name = video_id
-    if dataset == "nextqa"   : index_name = video_id.split("_")[0]
-
-    if dataset == "egoschema": os.environ["VIDEO_FILE_NAME"] = video_id
-    if dataset == "nextqa"   : os.environ["VIDEO_FILE_NAME"] = map_vid[video_id.split("_")[0]]
-
-    os.environ["VIDEO_INDEX"]     = index_name
-    os.environ["QA_JSON_STR"]     = json.dumps(json_data)
-
-    print ("{} : {}".format(video_id, index_name))
-
 
 # Loop through questions
 while True:
@@ -90,12 +79,13 @@ while True:
 
         # Set environment variables
         print ("****************************************")
-        set_environment_variables(video_id, json_data, dataset, use_re_writed_qa=False)
+        set_environment_variables(dataset, video_id, json_data)
 
         # Execute stage1
         print ("execute stage1")
         expert_info = execute_stage1()
         
+        # replace newline characters to prevent errors in json serialization
         expert_info["ExpertName1Prompt"] = expert_info["ExpertName1Prompt"].replace('\n',' ')
         expert_info["ExpertName2Prompt"] = expert_info["ExpertName2Prompt"].replace('\n',' ')
         expert_info["ExpertName3Prompt"] = expert_info["ExpertName3Prompt"].replace('\n',' ')
