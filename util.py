@@ -235,17 +235,11 @@ def extract_expert_info_json(data):
 
 def extract_expert_info(data):
     result = extract_expert_info_json(data)
-    result = add_text_analysis_expert_info(result)
     if len([k for k in result if "ExpertName" in k]) >= 2 and len([k for k in result if "Prompt" in k]) >= 3:
         return result
     else:
         return None
 
-
-def add_text_analysis_expert_info(data):
-    data["ExpertName3"] = "Text Analysis Expert"
-    data["ExpertName3Prompt"] = "You are a Text Analysis Expert. For each option, check that the following two points are satisfied and insist on excluding any unsuitable ones.\n 1. The sentence does not contain unnecessary embellishments, for example, subjective adverbs or situational situational statements.\n 2. The sentence is comprehensive and accurate with regard to objects and actions.\n"
-    return data
 
 def read_json_file(file_path):
     # print ("read_json_file")
