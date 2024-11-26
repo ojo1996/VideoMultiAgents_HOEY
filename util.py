@@ -175,8 +175,14 @@ def create_question_sentence(question_data:dict, shuffle_questions=False):
 
 def create_stage2_agent_prompt(question_data:dict, generated_expert_prompt="", shuffle_questions=False):
     prompt = create_question_sentence(question_data, shuffle_questions)
+
+    summary_info = json.loads(os.getenv("SUMMARY_INFO"))
+    prompt += "\n\n[Video Summary Information]\n"
+    prompt += "Entire Summary: \n" + summary_info["entire_summary"] + "\n\n"
+    prompt += "Detail Summaries: \n" + summary_info["detail_summaries"]
+    
     prompt += "\n\n[Instructions]\n"
-    prompt += "Understand the question and options well and focus on the differences between the options.\n"
+    # prompt += "Understand the question and options well and focus on the differences between the options.\n"
     # prompt += "Exclude options that contain unnecessary embellishments, such as subjective adverbs or clauses that cannot be objectively determined, and consider only the remaining options.\n"
     prompt += generated_expert_prompt
     return prompt
