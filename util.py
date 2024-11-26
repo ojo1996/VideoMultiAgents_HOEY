@@ -93,26 +93,64 @@ def create_mas_stage1_prompt(json_data):
 
     options_str = "\n".join(options)
 
+    # prompt = (
+    #     "[Question and 5 Options to Solve]\n"
+    #     f"{question}\n"
+    #     f"{options_str}\n\n"
+    #     "[Instructions]\n"
+    #     "Please identify two experts to answer questions related to this video. Name the two types of experts and specify their fields of expertise.\n"
+    #     "Ensure the expert types come from different fields to provide diverse perspectives.\n"
+    #     "Additionally, create a prompt for each expert to answer the questions. Instruct each expert to provide two answers and explanations.\n\n"
+    #     "[Example prompt for ExpertNameXPrompt]\n"
+    #     "You are a Housekeeping Expert. Watch the video from the perspective of a professional housekeeper and answer the following questions based on your expertise.\n"
+    #     "Please think step-by-step.\n\n"
+    #     "[Response Format]\n"
+    #     "You must respond using this JSON format:\n"
+    #     "{\n"
+    #     '  "ExpertName1": "xxxx",\n'
+    #     '  "ExpertName1Prompt": "xxxx",\n'
+    #     '  "ExpertName2": "xxxx",\n'
+    #     '  "ExpertName2Prompt": "xxxx"\n'
+    #     "}"
+    # )
+
     prompt = (
         "[Question and 5 Options to Solve]\n"
         f"{question}\n"
         f"{options_str}\n\n"
         "[Instructions]\n"
-        "Please identify two experts to answer questions related to this video. Name the two types of experts and specify their fields of expertise.\n"
-        "Ensure the expert types come from different fields to provide diverse perspectives.\n"
-        "Additionally, create a prompt for each expert to answer the questions. Instruct each expert to provide two answers and explanations.\n\n"
-        "[Example prompt for ExpertNameXPrompt]\n"
-        "You are a Housekeeping Expert. Watch the video from the perspective of a professional housekeeper and answer the following questions based on your expertise.\n"
-        "Please think step-by-step.\n\n"
-        "[Response Format]\n"
-        "You must respond using this JSON format:\n"
+        "Your task is to identify three experts from different fields to answer a given question related to the provided video. You must also provide specific prompts for each expert, instructing them to answer the questions from their unique perspectives using a four-step structured reasoning approach. Additionally, each expert should consider the responses and insights of other agents during their reasoning to form a more holistic answer without losing the independence of their own perspective.\n\n"
+        "- Ensure each expert represents a completely distinct area of expertise to provide diverse viewpoints and maintain independence in their own analysis.\n"
+        "- Each expert prompt should also guide the agent to incorporate, reflect, and reason upon insights from other experts.\n"
+        "- Create detailed prompts for each expert, explicitly breaking down the four-step thought process each needs to follow in addressing the question and justifying their conclusions while considering other agents' responses.\n\n"
+        "### Steps\n\n"
+        "1. **Understanding the Purpose**: Understand the purpose of the question by analyzing what is being asked and identifying the criteria that must be used to evaluate each selected answer option.\n"
+        "2. **Gathering Information**: Gather all necessary information. Use available tools, data, prior knowledge from the expert's domain, and insights provided by other experts to collect key information to solve the problem.\n"
+        "3. **Reflecting**: Reflect deeply on the gathered information, ensuring logical coherence. Evaluate each option thoroughly and rank them according to their relevance based on the expert's specific field of knowledge. Incorporate insights or useful points from other experts while keeping the main reasoning within the limits of the specific field of expertise.\n"
+        "4. **Concluding**: Conclude with two detailed and plausible answers, explaining each conclusion and ensuring they are derived logically from the analysis conducted in the prior steps.\n\n"
+        "### Output Format\n\n"
+        "Provide the responses in the following JSON format:\n\n"
         "{\n"
-        '  "ExpertName1": "xxxx",\n'
-        '  "ExpertName1Prompt": "xxxx",\n'
-        '  "ExpertName2": "xxxx",\n'
-        '  "ExpertName2Prompt": "xxxx"\n'
-        "}"
+        '  "ExpertName1": "[Name of Expert | Field]",\n'
+        '  "ExpertName1Prompt": "[Prompt for Expert 1 with clear instructions to follow the four-step structure and incorporating insights from other agents]",\n'
+        '  "ExpertName2": "[Name of Expert | Field]",\n'
+        '  "ExpertName2Prompt": "[Prompt for Expert 2 with clear instructions to follow the four-step structure and incorporating insights from other agents]",\n'
+        '  "ExpertName3": "[Name of Expert | Field]",\n'
+        '  "ExpertName3Prompt": "[Prompt for Expert 3 with clear instructions to follow the four-step structure and incorporating insights from other agents]"\n'
+        "}\n\n"
+        "### Example prompt for ExpertName1Prompt\n\n"
+        "You are a Housekeeping Expert. Step 1: Understand the purpose by analyzing the question about maintaining a clean home environment. Identify what aspects are being discussed and evaluate the significance of each option. Step 2: Gather insights from your professional experience related to household management, including benefits of hygiene, organization, and overall housekeeping, as well as reflections from other experts if mentioned. Step 3: Think critically about each of the aspects in relation to cleanliness, logically ranking each option in detail based on its importance while considering insights shared by other specialists. Step 4: Conclude with two detailed reasons why cleanliness is essential, explaining your reasoning with examples and reflecting any useful points from other agents.\n\n"
+        "### Example prompt for ExpertName2Prompt\n\n"
+        "You are a Psychologist. Step 1: Begin by assessing the relevance of a clean environment in context with mental health and overall psychological well-being. Step 2: Gather relevant theories and research findings on the correlation between cleanliness and improved mental health, as well as reviewing relevant insights from other experts. Step 3: Think critically about factors like reduced stress and improved organization, carefully ranking them while considering any useful points mentioned by others. Step 4: Conclude by providing two comprehensive answers, each reflecting different psychological dimensions of cleanliness, and also mentioning useful reflections from other experts when relevant.\n\n"
+        "### Example prompt for ExpertName3Prompt\n\n"
+        "You are a Pest Control Specialist. Step 1: Understand the focus of the question regarding how maintaining cleanliness impacts the control of household pests. Step 2: Gather information from your background on effective pest reduction methods, linking cleanliness to pest prevention. Evaluate any relevant points that other experts might have highlighted. Step 3: Critically assess the given options based on the potential to reduce pests, incorporate useful reflections from other fields for a more holistic argument, and rank them accordingly. Step 4: Conclude with two well-founded answers, backed by evidence of how cleanliness and pest avoidance are interrelated, detailing your reasoning behind each suggestion, taking into consideration any other agent insights where valuable.\n\n"
+        "### Notes\n\n"
+        "- Select experts whose fields provide distinct and non-overlapping perspectives to ensure diverse, valuable insights.\n"
+        "- Explanations must clearly adhere to the professional background of each expert while also referencing and considering other agents’ insights where they enhance the quality of the response.\n"
+        "- For each expert, make sure to articulate the step-by-step reasoning and include reflections on insights from other agents before stating the conclusions.\n"
+        "- The JSON format must be exactly adhered to for uniformity in the output.\n"
     )
+
     return prompt
 
 
