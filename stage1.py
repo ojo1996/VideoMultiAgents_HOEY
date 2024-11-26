@@ -4,6 +4,7 @@ import time
 from util import ask_gpt4_omni
 from util import create_mas_stage1_prompt
 from util import extract_expert_info
+from util import create_summary_of_video
 
 
 def execute_stage1():
@@ -14,6 +15,16 @@ def execute_stage1():
     qa_json_str             = os.getenv("QA_JSON_STR")
 
     question = json.loads(qa_json_str)
+    
+    # Create Summary infomation of the video
+    summary_info = create_summary_of_video(openai_api_key=openai_api_key, temperature=0.7, image_dir=image_dir, vid=video_filename, sampling_interval_sec=1, segment_frames_num=frame_num)
+
+    print ("*********** Summary Info **************")
+    print(json.dumps(summary_info, indent=2, ensure_ascii=False))
+    print ("****************************************")
+    
+    # set summary info as environment variable
+    os.environ["SUMMARY_INFO"] = json.dumps(summary_info)
 
     prompt = create_mas_stage1_prompt(question)
     print (prompt)
