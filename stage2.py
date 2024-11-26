@@ -3,7 +3,7 @@ import time
 import json
 import operator
 import functools
-
+from typing import Annotated, Any, Dict, List, Optional, Sequence, TypedDict
 from langgraph.graph import StateGraph, END
 from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain.output_parsers.openai_functions import JsonOutputFunctionsParser
@@ -12,20 +12,26 @@ from langchain_core.messages import BaseMessage, HumanMessage
 from langchain_openai import ChatOpenAI
 from langchain_groq import ChatGroq
 from langchain_ollama import ChatOllama
+
 # for llama3
 # import transformers
 # import torch
 # from langchain_huggingface.llms.huggingface_pipeline import HuggingFacePipeline
 # from langchain_huggingface import ChatHuggingFace
 
-from typing import Annotated, Any, Dict, List, Optional, Sequence, TypedDict
-from tools import retrieve_video_clip_captions, analyze_video_gpt4o, dummy_tool, analyze_video_gpt4o_with_keyword
+from tools.dummy_tool import dummy_tool
+from tools.retrieve_video_clip_captions import retrieve_video_clip_captions
+from tools.retrieve_video_clip_caption_with_llm import retrieve_video_clip_caption_with_llm
+from tools.analyze_video_gpt4o import analyze_video_gpt4o
+from tools.analyze_video_based_on_the_checklists import analyze_video_based_on_the_checklist
+# from tools.analyze_video_gpt4o_with_keyword import analyze_video_gpt4o_with_keyword
+
 from util import post_process, ask_gpt4_omni, create_stage2_agent_prompt, create_stage2_organizer_prompt, create_question_sentence
 
 
 openai_api_key = os.getenv("OPENAI_API_KEY")
 
-tools = [analyze_video_gpt4o, retrieve_video_clip_captions]
+tools = [analyze_video_gpt4o, retrieve_video_clip_captions, analyze_video_based_on_the_checklist]
 # tools = [analyze_video_gpt4o_with_keyword, retrieve_video_clip_captions]
 
 llm = ChatOpenAI(

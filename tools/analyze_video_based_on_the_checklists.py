@@ -3,7 +3,6 @@ import sys
 import json
 from langchain.agents import tool
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from util import ask_gpt4_omni
 
 
