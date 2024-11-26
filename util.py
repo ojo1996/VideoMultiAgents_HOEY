@@ -329,13 +329,135 @@ def save_result(file_path, video_id:str, expert_info:dict, agent_prompts:dict, a
             portalocker.unlock(f)
 
 
-def save_re_write_question_and_options(file_path, video_id:str, rewrited_qa:dict):
-    questions = read_json_file(file_path)
+def create_summary_of_video(openai_api_key="", temperature=0.0, image_dir="", vid="", sampling_interval_sec=3, segment_frames_num=90):
+    
+    print("create_summary_of_video function called")
+    
+    # JSON file path
+    json_path = os.environ["SUMMARY_CACHE_JSON_PATH"]
+    
+    # JSON file handling
+    if os.path.exists(json_path):
+        with open(json_path, "r") as f:
+            portalocker.lock(f, portalocker.LOCK_EX)
+            video_summaries = json.load(f)
+    else:
+        video_summaries = {}
 
-    questions[video_id]["rewrited_qa"] = rewrited_qa
+    # Check if the vid result is already in the JSON
+    if vid in video_summaries:
+        print(f"Summary for vid '{vid}' found in JSON. Returning cached result.")
+        return video_summaries[vid]
+    
+    # OpenAI settings
+    model_name = "gpt-4o"
+    detail     = "low" # high
+    client     = OpenAI(api_key=openai_api_key)
+    
+    # Pricing per 1000 tokens (adjust according to actual pricing)
+    model_pricing = {
+        "gpt-4o": {
+            "prompt": 2.5 / 1000000,      # $2.5 per 1M prompt tokens
+            "completion": 10.0 / 1000000  # $10 per 1M completion tokens
+        }
+    }
+    
+    # system prompt
+    system_prompt = """
+    Create a summary of the video based on the sequence of input images. 
 
-    # save result
-    with open(file_path, "w") as f:
-        portalocker.lock(f, portalocker.LOCK_EX)
-        json.dump(questions, f, indent=4)
-        portalocker.unlock(f)
+    # Output Format
+
+    Provide the summary as a concise paragraph, emphasizing key events or topics represented in the image sequence.
+    """
+    
+    system_prompt_entire = """
+    Create a summary of the video based on the provided list of text summaries for each specified segment of the video.
+
+    # Output Format
+
+    Provide the summary as a concise paragraph, emphasizing key events or topics covered throughout the entire video.
+    """
+
+    # Get the list of image files
+    frame_path_list = sorted(glob.glob(os.path.join(image_dir, vid, "*")))
+    valid_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tiff"}
+    frame_path_list = [path for path in frame_path_list if os.path.splitext(path)[1].lower() in valid_extensions]
+    sampled_frame_path_list = frame_path_list[::sampling_interval_sec]
+    
+    summary_results = []
+    temp_frames     = []
+    total_tokens    = 0
+    total_cost      = 0.0
+    
+    # create summary every segment_frames_num frames
+    for i in range(len(sampled_frame_path_list)):
+        data_url = local_image_to_data_url(sampled_frame_path_list[i])
+        temp_frames.append({ "type": "image_url", "image_url": { "url": data_url, "detail": detail } })
+        
+        if len(temp_frames) == segment_frames_num or i == len(sampled_frame_path_list) - 1:
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    { "role": "system", "content": system_prompt },
+                    { "role": "user", "content": temp_frames }
+                ],
+                max_tokens=3000,
+                temperature=temperature
+            )
+            summary_results.append(response.choices[0].message.content)
+            
+            # Get usage data
+            # print ("usage: ", response.usage)
+            total_tokens += response.usage.total_tokens
+            total_cost += (response.usage.prompt_tokens * model_pricing[model_name]['prompt'] + response.usage.completion_tokens * model_pricing[model_name]['completion'])
+            
+            temp_frames = []
+        
+    # create entire summary from the summary results
+    detail_summaries = ""
+    for i in range(len(summary_results)):
+        start_sec = i * sampling_interval_sec * segment_frames_num
+        end_sec = start_sec + sampling_interval_sec * segment_frames_num
+        detail_summaries += f"--- Segment {start_sec}-{end_sec} sec ---\n {summary_results[i]}\n\n"
+    
+    response = client.chat.completions.create(
+        model=model_name,
+        messages=[
+            { "role": "system", "content": system_prompt_entire },
+            { "role": "user", "content": detail_summaries }
+        ],
+        max_tokens=10000,
+        temperature=temperature
+    )
+    entire_summary = response.choices[0].message.content
+    
+    # Get usage data for the entire summary
+    # print ("usage: ", response.usage)
+    total_tokens += response.usage.total_tokens
+    total_cost += (response.usage.prompt_tokens * model_pricing[model_name]['prompt'] + response.usage.completion_tokens * model_pricing[model_name]['completion'])
+    
+    # Save the result to the JSON
+    video_summaries[vid] = {
+        "entire_summary": entire_summary,
+        "detail_summaries": detail_summaries,
+        "total_tokens": total_tokens,
+        "total_cost": total_cost
+    }
+    
+    with open(json_path, "w") as file:
+        portalocker.lock(file, portalocker.LOCK_EX)
+        json.dump(video_summaries, file, indent=4)
+    
+    return video_summaries[vid]
+
+
+
+
+if __name__ == "__main__":
+    
+    # set environment variables
+    os.environ["SUMMARY_CACHE_JSON_PATH"] = "/root/VideoMultiAgents/summary_cache_egoschema.json"
+    res = create_summary_of_video(openai_api_key=os.getenv("OPENAI_API_KEY"), temperature=0.0, image_dir="/root/nas_Ego4D/egoschema/images", vid="55c9c777-a4a9-48df-b0e3-7ebf55788373", sampling_interval_sec=3, segment_frames_num=90)
+    print ("*******")
+    print(json.dumps(res, indent=2, ensure_ascii=False))
