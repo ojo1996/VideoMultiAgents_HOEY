@@ -28,6 +28,8 @@ def analyze_video_based_on_the_checklist(question_and_options:str, agent_role:st
     image_dir       = os.getenv("IMAGES_DIR_PATH")
 
     print ("Called the tool of analyze_video_based_on_the_checklist")
+    # print ("question_and_options: ", question_and_options)
+    # print ("agent_role: ", agent_role)
     
     # The prompt to create a checklist for the video analysis based on the agent's role. 
     gpt_prompt = f"""
@@ -65,5 +67,5 @@ def analyze_video_based_on_the_checklist(question_and_options:str, agent_role:st
                 temperature=0.7,
                 frame_num=frame_num 
             )
-    # print ("result: ", result)
+    print ("result: ", result)
     return result

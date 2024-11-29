@@ -48,6 +48,9 @@ def retrieve_video_clip_captions() -> list[str]:
         # Update the previous caption
         previous_caption = caption
 
+    # print("Retrieved video clip captions.")
+    # print(result)
+
     return result
 
 
