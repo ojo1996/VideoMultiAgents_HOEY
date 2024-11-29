@@ -2,56 +2,87 @@
 
 VideoMultiAgent for Long-Term video understanding.
 
-## 1 Prerequisites
+## 🔖Prerequisites
 
 - Docker installed
 
-## 2 Preparation
+## 📚Dataset Preparation
 
-### 2.1 Download the Datasets
+- ### Step1 : Download the Datasets
 
-#### 2.1.1 EgoSchemaVQA dataset
+    - #### EgoSchemaVQA dataset
 
-##### Please refer to the following official repository to download the EgoSchemaVQA dataset.
-https://github.com/egoschema/EgoSchema
+        Please refer to the following official repository to download the EgoSchemaVQA dataset.
+        
+        https://github.com/egoschema/EgoSchema
 
-#### You can download the Question file of EgoSchemaVQA dataset from the following link:
-This link is from LLoVi's github.
-https://drive.google.com/file/d/13M10CB5ePPVlycn754_ff3CwnpPtDfJA/view?usp=drive_link
+        You can download the Question file of EgoSchemaVQA dataset from the following link:
+        
+        This link is from LLoVi's github.
+        
+        https://drive.google.com/file/d/13M10CB5ePPVlycn754_ff3CwnpPtDfJA/view?usp=drive_link
 
-#### 2.1.2 NextQA dataset
+    - #### NextQA dataset
 
-Raw videos for train/val/test are available at: (https://drive.google.com/file/d/1jTcRCrVHS66ckOUfWRb-rXdzJ52XAWQH/view).
+        Raw videos for train/val/test are available at: (https://drive.google.com/file/d/1jTcRCrVHS66ckOUfWRb-rXdzJ52XAWQH/view).
 
-you may need map_vid_vidorID.json to find the videos, avaialble at: https://drive.google.com/file/d/1NFAOQYZ-D0LOpcny8fm0fSzLvN0tNR2A/view?usp=sharing
+        you may need map_vid_vidorID.json to find the videos, avaialble at: https://drive.google.com/file/d/1NFAOQYZ-D0LOpcny8fm0fSzLvN0tNR2A/view?usp=sharing
 
-### 2.2 LLoVi Caption Data
+- ### Step2 : LLoVi Caption Data
 
-Our model uses the LLoVi caption data. You can download the LLoVi caption data from the following link.
-https://github.com/CeeZh/LLoVi
+    Our model uses the LLoVi caption data. You can download the LLoVi caption data from the following link.
 
-Then use the extract_images_features.py to convert Video files for NextQA dataset into frames and csv2json.py to convert val.csv to nextqa.json
+    https://github.com/CeeZh/LLoVi
 
-## 3 Setup & Usage
+    Then use the extract_images_features.py to convert Video files for NextQA dataset into frames and csv2json.py to convert val.csv to nextqa.json
 
-### 3.1 set the environment variables
+## 🐋Container and Parameters Setting
 
-Our model uses the OpenAI. So, Please set the access infomation into the Dockerfile.
+- ### Step1 : set the environment variables
 
-### 3.2 set the variables
+    Our model uses the OpenAI. So, Please set the api-key into the .env file
 
-Set the appropriate file paths inside main.py
+- ### Step2 : set the variables
 
-## 4 Build & Run
+    Set the appropriate file paths inside main.py
 
-### 4.1 Build the container
+- ### Step3 : Build the container
 
-`docker compose up`
+    `docker compose build`
 
-### 4.2 Run the container
 
-`docker exec -it docker-video_multi_agents_env-1 /bin/bash`
+## 🚀Execute the script
 
-### 4.3 Run the python script from inside the cntainer
+- ### Step1 : Execute and Init the container
 
-`python3 main.py --dataset=DATASET`
+    - Execute the container
+
+        `docker compose run video_multi_agent_env /bin/bash`
+
+    - Init the container
+
+        `docker exec -it <container_name> /bin/bash`
+
+- ### Step2 : Run the script
+
+    - EgoSchema Dataset
+
+        `python3 main.py --dataset=egoschema`
+
+    - Next-QA Dataset
+
+        `python3 main.py --dataset=nextqa`
+
+    - IntentQA Dataset (WIP)
+
+        `python3 main.py --dataset=intentqa`
+
+    - iVQA Dataset (WIP)
+
+        `python3 main.py --dataset=ivqa`
+
+### 4.3 if you want to run with multiple containers
+
+By adding the scale option, as shown in the following command, you can speed up its inference process.
+
+`docker compose up --scale video_multi_agents_env=10`
