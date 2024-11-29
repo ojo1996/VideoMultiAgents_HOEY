@@ -81,7 +81,7 @@ VideoMultiAgent for Long-Term video understanding.
 
         `python3 main.py --dataset=ivqa`
 
-### 4.3 if you want to run with multiple containers
+### Appendix : Run with multiple containers
 
 By adding the scale option, as shown in the following command, you can speed up its inference process.
 
