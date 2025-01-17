@@ -37,7 +37,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get -y clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install torch==2.4.0
+# RUN pip install torch==2.4.0
 RUN curl -fsSL https://ollama.com/install.sh | sh
 RUN ln -s /usr/bin/python3 /usr/bin/python
 
