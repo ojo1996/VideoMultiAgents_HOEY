@@ -9,19 +9,16 @@ import torch
 def adaptive_frame_sampling(image_dir: str, question:str, captions:list, video_filename:str):
 
     prompt = f"""
-    You are tasked with determining the appropriate frame sampling method for Visual Question Answering (VQA) based on the following video-based question and the corresponding video's timestamped captions.
+    Please determine the appropriate frame sampling method for this provided video-based question and the corresponding video's timestamped captions.\n 
+    question: {question}\n
+    captions: {captions}
+    Choose **only one** of the following two options and **return only the method name**:\n
 
-    Choose **only one** of the following methods and **return only the method name**:
+    1. **Uniform Frame Sampling**: Use this method if the question requires analyzing the entire video to answer (e.g., the answer depends on information from across the video, such as a general summary or trends over time).\n
+    2. **Videotree Frame Sampling**: Use this method if the question can be answered by looking at specific parts or segments of the video (e.g., the answer is based on a particular scene or events in the video).\n
 
-    1. **Uniform Frame Sampling**: Use this method when the question requires analyzing the entire video continuously. This is suitable for questions that demand understanding of broad patterns, general trends, or a holistic summary, where key observations are distributed throughout the video and specific segments cannot independently answer the question.
-
-    2. **Videotree Frame Sampling**: Use this method when the question can be answered by focusing on specific parts, key moments, or events within the video. This method applies even if answering the question involves analyzing multiple distinct moments but does not require continuous analysis of the entire video.
-
-    Question: {question}
-    Captions: {captions}
-
-    Your answer should be **either**:
-    - **Videotree Frame Sampling**
+    Your answer should be either: \n
+    - **Videotree Frame Sampling** \n
     - **Uniform Frame Sampling**
     """
     openai.api_key = os.getenv("OPENAI_API_KEY")
