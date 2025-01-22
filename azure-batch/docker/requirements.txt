@@ -13,5 +13,5 @@ pillow==10.4.0
 pytorch-lightning==2.4.0
 azure-core==1.31.0
 azureml-core==1.57.0.post1
-azure-storage-blob=12.24.0
-azure-cosmos=4.9.0
+azure-storage-blob==12.24.0
+azure-cosmos==4.9.0
