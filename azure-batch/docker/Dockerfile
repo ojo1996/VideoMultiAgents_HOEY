@@ -38,8 +38,8 @@ RUN pip install -r requirements.txt
 WORKDIR /root
 RUN mkdir -p /root/VideoMultiAgents/
 
-COPY main.py /root/VideoMultiAgents/
-COPY util_azure.py /root/VideoMultiAgents/
+COPY azure-batch/main.py /root/VideoMultiAgents/
+COPY azure-batch/util_azure.py /root/VideoMultiAgents/
 COPY stage1.py /root/VideoMultiAgents/
 COPY stage2.py /root/VideoMultiAgents/
 COPY tools /root/VideoMultiAgents/tools/

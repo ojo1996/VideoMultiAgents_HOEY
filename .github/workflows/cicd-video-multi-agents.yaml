@@ -34,7 +34,7 @@ jobs:
     - name: Build and push docker image
       uses: docker/build-push-action@v6
       with:
-        context: ./azure-batch/docker
+        context: .
         file: ./azure-batch/docker/Dockerfile
         push: true
         tags: |
