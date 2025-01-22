@@ -34,7 +34,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip3 install -U pip
 COPY requirements.txt requirements.txt
 RUN pip install -r requirements.txt
+
 WORKDIR /root
+RUN mkdir -p /root/VideoMultiAgents/
+
+COPY main.py /root/VideoMultiAgents/
+COPY util_azure.py /root/VideoMultiAgents/
+COPY stage1.py /root/VideoMultiAgents/
+COPY stage2.py /root/VideoMultiAgents/
+COPY tools /root/VideoMultiAgents/
 
 # Set up the Bash shell environment
 RUN echo "export PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '" >> /root/.bashrc
