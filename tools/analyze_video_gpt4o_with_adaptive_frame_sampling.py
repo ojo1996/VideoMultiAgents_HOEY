@@ -1,10 +1,8 @@
-import VideoTree
 import openai
 import os
 import json
 from langchain.agents import tool
 from .retrieve_video_clip_captions import retrieve_video_clip_captions
-import torch
 
 def adaptive_frame_sampling(image_dir: str, question:str, captions:list, video_filename:str):
 
@@ -23,37 +21,37 @@ def adaptive_frame_sampling(image_dir: str, question:str, captions:list, video_f
     """
     openai.api_key = os.getenv("OPENAI_API_KEY")
 
+    attempts = 0
+    retries = 3
 
-    response = openai.chat.completions.create(
-        model="gpt-4o",  
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": prompt}
-        ],
-        max_tokens=4000,
-        temperature=0.3,
-    )
-
-    
-    sampling_method = response.choices[0].message.content
-
-    if sampling_method== "Videotree Frame Sampling":
-
-        # img_feats = VideoTree.extract_features(image_dir)                         # If extracting the features on the fly.
-
-        img_feats = torch.load(os.path.join(os.getenv("FRAME_FEATURES_PATH"), video_filename + ".pt"))     # If loading the pre extracted features
-
-        relevance_score, width_res = VideoTree.adaptive_breath_expansion(img_feats, video_filename)
-        depth_expansion_res = VideoTree.depth_expansion(img_feats, image_dir, relevance_score, width_res)
-        indices = depth_expansion_res[0]["sorted_values"]
-        indices = list(dict.fromkeys(indices))
-        image_paths = sorted([os.path.join(image_dir, f) for f in os.listdir(image_dir)])
-        selected_frames = [image_paths[idx] for idx in indices]  
+    while attempts < retries:
+            
+        response = openai.chat.completions.create(
+            model="gpt-4o",  
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=4000,
+            temperature=0.3,
+        )
         
-        return selected_frames
+        sampling_method = response.choices[0].message.content
 
-    elif sampling_method == "Uniform Frame Sampling":
-        return None
+        if sampling_method.lower() == "videotree frame sampling":
+            with open(os.getenv("VIDEOTREE_RESULTS_PATH"), 'r') as f:
+                videotree_result = json.load(f)
+            indices = videotree_result[video_filename]["sorted_values"]
+            indices = list(dict.fromkeys(indices))
+            image_paths = sorted([os.path.join(image_dir, f) for f in os.listdir(image_dir)])
+            selected_frames = [image_paths[idx] for idx in indices]  
+            
+            return selected_frames
+
+        elif sampling_method.lower() == "uniform frame sampling":
+            return None
+            
+        attempts += 1
 
 @tool
 def analyze_video_gpt4o_with_adaptive_frame_sampling(gpt_prompt:str) -> str:

@@ -18,13 +18,13 @@ dataset = args.dataset
 
 # Path to the file containing the captions data
 CAPTIONS_FILE_DICT =     {
-    "egoschema": "/root/nas_Ego4D/egoschema/llovi_data/egoschema/lavila_subset.json",
+    "egoschema": "/root/nas_Ego4D/egoschema/llovi_data/egoschema/lavila_fullset.json",
     "nextqa"   : "/root/nas_nextqa/nextqa/llava1.5_fps1.json"
     }   
 
 # Path to the file containing the questions data
 QUESTION_FILE_PATH_DICT =     {
-    "egoschema": "/root/nas_Ego4D/egoschema/llovi_data/egoschema/subset_anno.json",
+    "egoschema": "/root/nas_Ego4D/egoschema/llovi_data/egoschema/fullset_anno.json",
     "nextqa"   : "/root/nas_nextqa/nextqa/nextqa.json"
     }   
 
@@ -46,17 +46,11 @@ SUMMARY_CACHE_JSON_PATH = {
     "nextqa"   : "/root/VideoMultiAgents/summary_cache_nextqa.json"
 }
 
-# Path to the duration data
-DURATION_FILE_PATH_DICT =     {
-    "egoschema": "/root/nas_Ego4D/egoschema/llovi_data/egoschema/duration.json",
-    "nextqa"   : "/root/nas_nextqa/nextqa/durations.json"
-    }   
-
-# Local path to frame features 
-FRAME_FEATURES_PATH_DICT =     {
-    "egoschema": "/root/nas_Ego4D/egoschema/VideoTreeDataFiles/VideoTree_frame_features",
-    "nextqa"   : "/path/to/nextqa/framefeatures"
-    }   
+# VideoTree extracted frames indices path
+VIDEOTREE_RESULTS_PATH_DICT =  {
+    "egoschema": "/root/nas_Ego4D/egoschema/llovi_data/egoschema/VideoTree_data/depth_expansion/frames_index.json",
+    "nextqa"   : "/path/to/nextqa/frames_index"
+    } 
 
 # mapping file for nextqa
 map_vid = "/root/nas_nextqa/nextqa/map_vid_vidorID.json"
@@ -64,17 +58,13 @@ if dataset == "nextqa":
     with open(map_vid, "r") as f:
         map_vid = json.load(f)
 
-# Local path to EVA Clip model
-os.environ["EVA-CLIP-8B"] =  "/root/EVA-CLIP-8B" 
-
-os.environ["DURATION_FILE_PATH"]      = DURATION_FILE_PATH_DICT[dataset]
 os.environ["DATASET"]                 = dataset
 os.environ["CAPTIONS_FILE"]           = CAPTIONS_FILE_DICT[dataset]
 os.environ["QUESTION_FILE_PATH"]      = QUESTION_FILE_PATH_DICT[dataset]
 os.environ["IMAGES_DIR_PATH"]         = IMAGES_DIR_PATH_DICT[dataset]
 os.environ["FRAME_NUM"]               = str(FRAME_NUM_DICT[dataset])
 os.environ["SUMMARY_CACHE_JSON_PATH"] = SUMMARY_CACHE_JSON_PATH[dataset]
-os.environ["FRAME_FEATURES_PATH"]     = FRAME_FEATURES_PATH_DICT[dataset]
+os.environ["VIDEOTREE_RESULTS_PATH"]  = VIDEOTREE_RESULTS_PATH_DICT[dataset]
 
 # Sleep for a random duration (0–10 seconds) to avoid simultaneous access to the JSON file by multiple containers
 sleep_time = random.uniform(0, 10)
