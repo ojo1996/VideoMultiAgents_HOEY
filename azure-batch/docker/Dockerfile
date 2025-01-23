@@ -44,6 +44,7 @@ COPY stage1.py /root/VideoMultiAgents/
 COPY stage2.py /root/VideoMultiAgents/
 COPY util.py /root/VideoMultiAgents/
 COPY tools /root/VideoMultiAgents/tools/
+COPY azure-batch/*.json /root/VideoMultiAgents/
 
 # Set up the Bash shell environment
 RUN echo "export PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '" >> /root/.bashrc
