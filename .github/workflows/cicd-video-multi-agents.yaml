@@ -1,0 +1,49 @@
+name: Docker Build and Push
+
+on:
+  push:
+    branches:
+    - main
+    - feature/**
+    paths:
+    - 'azure-batch/**'
+    - '.github/workflows/**'
+    - 'stage1.py'
+    - 'stage2.py'
+  workflow_dispatch:
+
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Download files
+      env:
+        PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+      run: |
+        cd azure-batch
+        bash download.sh
+
+    - name: Azure Login
+      uses: azure/docker-login@v2
+      with:
+        login-server: ${{secrets.ACR_URL}}
+        username: ${{ secrets.ACR_USERNAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
+
+    - name: Build and push docker image
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        file: ./azure-batch/docker/Dockerfile
+        push: true
+        tags: |
+          ${{secrets.ACR_URL}}/vide-multi-agents:latest
+          ${{secrets.ACR_URL}}/vide-multi-agents:${{GITHUB.SHA}}

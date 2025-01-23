@@ -13,13 +13,13 @@ VideoMultiAgent for Long-Term video understanding.
     - #### EgoSchemaVQA dataset
 
         Please refer to the following official repository to download the EgoSchemaVQA dataset.
-        
+
         https://github.com/egoschema/EgoSchema
 
         You can download the Question file of EgoSchemaVQA dataset from the following link:
-        
+
         This link is from LLoVi's github.
-        
+
         https://drive.google.com/file/d/13M10CB5ePPVlycn754_ff3CwnpPtDfJA/view?usp=drive_link
 
     - #### NextQA dataset
@@ -81,8 +81,17 @@ VideoMultiAgent for Long-Term video understanding.
 
         `python3 main.py --dataset=ivqa`
 
-### Appendix : Run with multiple containers
+### Appendix
+-   Run with multiple containers
 
-By adding the scale option, as shown in the following command, you can speed up its inference process.
+    By adding the scale option, as shown in the following command, you can speed up its inference process.
 
-`docker compose up --scale video_multi_agents_env=10`
+    `docker compose up --scale video_multi_agent_env=10`
+
+-  Run with Azure Batch
+
+    Using Azure Batch, you can run the VideoMultiAgent more speedily by scaling up the number of nodes.
+
+    Please refer to the following [Readme.md](./azure-batch/README.md)
+
+    <img src="./docs/azure_batch_nodes.png" width="500">
