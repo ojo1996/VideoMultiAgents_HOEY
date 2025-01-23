@@ -8,8 +8,8 @@ from azure.cosmos import CosmosClient
 
 connection_string = "YourCosmosConnectionString"
 database_name     = "egoschema"
-experiment_id     = "egoschema_subset"
-output_file       = "experiment_data.json" # Optional: Set to None to skip saving the data
+experiment_id     = "egoschema_fullset"
+output_file       = f"{experiment_id}.json" # Optional: Set to None to skip saving the data
 
 ###############################################################################################################
 ###############################################################################################################
