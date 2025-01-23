@@ -54,5 +54,5 @@ qa_json_data["video_id"] = os.getenv("CONTAINER_NAME")
 qa_json_data["agent_prompts"] = agent_prompts
 qa_json_data["agent_response"] = agent_response
 qa_json_data["pred"] = result
-save_experiment_data(os.getenv("COSMOS_CONNECTION_STRING"), os.getenv("DATASET_NAME"), os.getenv("EXPERIMENT_ID"), qa_json_data)
+save_experiment_data(os.getenv("COSMOS_CONNECTION_STRING"), os.getenv("DATASET"), os.getenv("EXPERIMENT_ID"), qa_json_data)
 
