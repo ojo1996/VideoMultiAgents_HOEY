@@ -42,6 +42,7 @@ COPY azure-batch/main.py /root/VideoMultiAgents/
 COPY azure-batch/util_azure.py /root/VideoMultiAgents/
 COPY stage1.py /root/VideoMultiAgents/
 COPY stage2.py /root/VideoMultiAgents/
+COPY util.py /root/VideoMultiAgents/
 COPY tools /root/VideoMultiAgents/tools/
 
 # Set up the Bash shell environment
