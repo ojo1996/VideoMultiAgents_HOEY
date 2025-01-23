@@ -129,7 +129,7 @@ if __name__ == '__main__':
         json_data_str = json.dumps(json_data)
         # continue
 
-        task_id = f"{EXPERIMENT_ID}_{i}"
+        task_id = f"{EXPERIMENT_ID}_{i:04}"
 
         # container settings
         container_settings = batchmodels.TaskContainerSettings(
