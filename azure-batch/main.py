@@ -49,7 +49,7 @@ print("result: ", result)
 
 # Save result
 qa_json_data = json.loads(os.getenv("QA_JSON_STR", "{}"))
-qa_json_data["id"] = "test"
+qa_json_data["id"] = os.getenv("VIDEO_FILE_NAME")
 qa_json_data["video_id"] = os.getenv("CONTAINER_NAME")
 qa_json_data["agent_prompts"] = agent_prompts
 qa_json_data["agent_response"] = agent_response
