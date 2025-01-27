@@ -45,5 +45,5 @@ jobs:
         file: ./azure-batch/docker/Dockerfile
         push: true
         tags: |
-          ${{secrets.ACR_URL}}/vide-multi-agents:latest
-          ${{secrets.ACR_URL}}/vide-multi-agents:${{GITHUB.SHA}}
+          ${{secrets.ACR_URL}}/video-multi-agents:latest
+          ${{secrets.ACR_URL}}/video-multi-agents:${{GITHUB.SHA}}
