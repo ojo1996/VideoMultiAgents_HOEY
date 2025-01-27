@@ -24,7 +24,7 @@ from tools.retrieve_video_clip_captions import retrieve_video_clip_captions
 # from tools.retrieve_video_clip_caption_with_llm import retrieve_video_clip_caption_with_llm
 from tools.analyze_video_gpt4o import analyze_video_gpt4o
 # from tools.analyze_video_based_on_the_checklists import analyze_video_based_on_the_checklist
-# from tools.analyze_video_gpt4o_with_adaptive_frame_sampling import analyze_video_gpt4o_with_adaptive_frame_sampling
+from tools.analyze_video_gpt4o_with_adaptive_frame_sampling import analyze_video_gpt4o_with_adaptive_frame_sampling
 # from tools.analyze_video_gpt4o_with_keyword import analyze_video_gpt4o_with_keyword
 
 from util import post_process, ask_gpt4_omni, create_stage2_agent_prompt, create_stage2_organizer_prompt, create_question_sentence
@@ -32,7 +32,7 @@ from util import post_process, ask_gpt4_omni, create_stage2_agent_prompt, create
 
 openai_api_key = os.getenv("OPENAI_API_KEY")
 
-tools = [analyze_video_gpt4o, retrieve_video_clip_captions]
+tools = [analyze_video_gpt4o_with_adaptive_frame_sampling, retrieve_video_clip_captions]
 #tools = [analyze_video_gpt4o, retrieve_video_clip_captions, analyze_video_based_on_the_checklist]
 # tools = [analyze_video_gpt4o_with_keyword, retrieve_video_clip_captions]
 
