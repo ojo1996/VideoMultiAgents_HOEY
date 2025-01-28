@@ -20,7 +20,7 @@ if os.getenv("DATASET") == "egoschema":
     os.environ["CAPTIONS_FILE"] = "/root/VideoMultiAgents/egoschema_lavila_captions.json"
     os.environ["FRAME_NUM"] = str(90)
     os.environ["SUMMARY_CACHE_JSON_PATH"] = "/root/VideoMultiAgents/egoschema_summary_cache.json"
-    summary_info = create_summary_of_video(openai_api_key=os.getenv("OPENAI_API_KEY"), temperature=0.7, image_dir=os.getenv("IMAGES_DIR_PATH"), vid=os.getenv("VIDEO_INDEX"), sampling_interval_sec=1, segment_frames_num=int(os.getenv("FRAME_NUM")))
+    summary_info = create_summary_of_video(openai_api_key=os.getenv("OPENAI_API_KEY"), temperature=0.7, image_dir=os.getenv("IMAGES_DIR_PATH"), vid=os.getenv("VIDEO_FILE_NAME"), sampling_interval_sec=1, segment_frames_num=int(os.getenv("FRAME_NUM")))
     os.environ["SUMMARY_INFO"] = json.dumps(summary_info)
 elif os.getenv("DATASET") == "nextqa":
     os.environ["CAPTIONS_FILE"] = "/root/VideoMultiAgents/nextqa_lavila_captions.json"
