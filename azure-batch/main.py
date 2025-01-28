@@ -6,6 +6,7 @@ from util_azure import download_blob_data, save_experiment_data
 # sys.path.append(os.path.abspath(".."))
 from stage1 import execute_stage1
 from stage2 import execute_stage2
+from util import create_summary_of_video
 
 # Check the environment variables
 env_vars = [ "BLOB_CONNECTION_STRING", "COSMOS_CONNECTION_STRING", "CONTAINER_NAME", "EXPERIMENT_ID", "DATASET", "OPENAI_API_KEY", "VIDEO_FILE_NAME", "QA_JSON_STR" ]
@@ -19,6 +20,8 @@ if os.getenv("DATASET") == "egoschema":
     os.environ["CAPTIONS_FILE"] = "/root/VideoMultiAgents/egoschema_lavila_captions.json"
     os.environ["FRAME_NUM"] = str(90)
     os.environ["SUMMARY_CACHE_JSON_PATH"] = "/root/VideoMultiAgents/egoschema_summary_cache.json"
+    summary_info = create_summary_of_video(openai_api_key=os.getenv("OPENAI_API_KEY"), temperature=0.7, image_dir=os.getenv("IMAGES_DIR_PATH"), vid=os.getenv("VIDEO_INDEX"), sampling_interval_sec=1, segment_frames_num=int(os.getenv("FRAME_NUM")))
+    os.environ["SUMMARY_INFO"] = json.dumps(summary_info)
 elif os.getenv("DATASET") == "nextqa":
     os.environ["CAPTIONS_FILE"] = "/root/VideoMultiAgents/nextqa_lavila_captions.json"
     os.environ["FRAME_NUM"] = str(32)
