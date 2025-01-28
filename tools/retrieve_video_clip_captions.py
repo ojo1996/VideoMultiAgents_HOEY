@@ -30,10 +30,10 @@ def retrieve_video_clip_captions() -> list[str]:
 
     for i, caption in enumerate(captions):
         
-        if dataset == "egoschema":
-            # Remove the 'C' marker from the caption
-            caption = caption.replace("#C ", "")
-            caption = caption.replace("#c ", "")
+        # if dataset == "egoschema":
+        #     # Remove the 'C' marker from the caption
+        #     caption = caption.replace("#C ", "")
+        #     caption = caption.replace("#c ", "")
 
         # Calculate the timestamp in hh:mm:ss format
         timestamp = str(timedelta(seconds=i))

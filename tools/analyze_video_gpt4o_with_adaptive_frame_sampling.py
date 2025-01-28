@@ -10,6 +10,9 @@ def adaptive_frame_sampling(image_dir: str, question:str, captions:list, video_f
     Please determine the appropriate frame sampling method for this provided video-based question and the corresponding video's timestamped captions.\n 
     question: {question}\n
     captions: {captions}
+
+    '#C' inside the captions represents the camera person and '#O' represents the other subject in the video.\n
+
     Choose **only one** of the following two options and **return only the method name**:\n
 
     1. **Uniform Frame Sampling**: Use this method if the question requires analyzing the entire video to answer (e.g., the answer depends on information from across the video, such as a general summary or trends over time).\n
@@ -46,10 +49,10 @@ def adaptive_frame_sampling(image_dir: str, question:str, captions:list, video_f
             image_paths = sorted([os.path.join(image_dir, f) for f in os.listdir(image_dir)])
             selected_frames = [image_paths[idx] for idx in indices]  
             
-            return selected_frames
+            return selected_frames, indices
 
         elif sampling_method.lower() == "uniform frame sampling":
-            return None
+            return None, None
             
         attempts += 1
 
@@ -84,10 +87,16 @@ def analyze_video_gpt4o_with_adaptive_frame_sampling(gpt_prompt:str) -> str:
 
     captions = retrieve_video_clip_captions({"video_index": video_filename, "captions_file": os.getenv("CAPTIONS_FILE"), "dataset": os.getenv("DATASET")})
     # print(captions)
-    selected_frames = adaptive_frame_sampling(frames, question, captions, video_filename)
+    selected_frames, indices = adaptive_frame_sampling(frames, question, captions, video_filename)
     frame_num = int(os.getenv("FRAME_NUM"))
 
     print ("Called the tool of analyze_video_gpt4o_with_adaptive_frame_sampling.")
+
+    if selected_frames == None:
+        gpt_prompt += "\nThe provided frames are sampled uniformly from throughout the video and represent the information from the entire video."
+    else:
+        timestamps = [f"{x + 1} second" for x in indices]
+        gpt_prompt += f"\nThe provided frames are sampled from specific parts or segments of the video representing the relevant scenes or events in the video. The selected frames are at timestamps:\n {', '.join(timestamps)}."
 
     result = ask_gpt4_omni(
                 openai_api_key=openai_api_key,
