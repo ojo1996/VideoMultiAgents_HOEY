@@ -22,7 +22,7 @@ def remove_bbox(data):
         return data
 
 @tool
-def analyze_video_using_graph_data(question:str) -> list[str]:
+def analyze_video_using_graph_data(question:str) -> str:
     """
     Analyze Video using Graph Data tool. 
     
