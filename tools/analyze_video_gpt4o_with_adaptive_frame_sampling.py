@@ -74,8 +74,6 @@ def analyze_video_gpt4o_with_adaptive_frame_sampling(gpt_prompt:str) -> str:
 
     from util import ask_gpt4_omni
 
-    print ("gpt_prompt: ", gpt_prompt)
-
     image_dir = os.getenv("IMAGES_DIR_PATH")
     video_filename = os.getenv("VIDEO_FILE_NAME") 
     openai_api_key = os.getenv("OPENAI_API_KEY")
@@ -97,7 +95,9 @@ def analyze_video_gpt4o_with_adaptive_frame_sampling(gpt_prompt:str) -> str:
     else:
         timestamps = [f"{x + 1} second" for x in indices]
         gpt_prompt += f"\nThe provided frames are sampled from specific parts or segments of the video representing the relevant scenes or events in the video. The selected frames are at timestamps:\n {', '.join(timestamps)}."
-
+    
+    print ("gpt_prompt: ", gpt_prompt)
+    
     result = ask_gpt4_omni(
                 openai_api_key=openai_api_key,
                 prompt_text=gpt_prompt,
