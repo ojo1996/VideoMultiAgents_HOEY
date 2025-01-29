@@ -9,7 +9,7 @@ from azure.cosmos import CosmosClient
 connection_string = "YourCosmosConnectionString"
 database_name     = "egoschema"
 experiment_id     = "egoschema_fullset"
-output_file       = f"{experiment_id}.json" # Optional: Set to None to skip saving the data
+output_file       = f"/root/VideoMultiAgents/azure-batch/{experiment_id}.json" # Optional: Set to None to skip saving the data
 
 ###############################################################################################################
 ###############################################################################################################
@@ -42,10 +42,10 @@ def calculate_experiment_accuracy(connection_string: str, database_name: str, ex
         return 0.0
 
     # Remove metadata fields
-    filtered_results = [
+    filtered_results = {item["q_uid"]:
         {k: v for k, v in item.items() if k not in {"_rid", "_self", "_etag", "_attachments", "_ts"}}
         for item in results
-    ]
+    }
 
     # Save results to JSON file if specified
     if output_file:
@@ -57,13 +57,13 @@ def calculate_experiment_accuracy(connection_string: str, database_name: str, ex
     correct = 0
     total = 0
 
-    for item in filtered_results:
-        if "pred" in item and "truth" in item:
+    for q_uid, result in filtered_results.items():
+        if "pred" in result and "truth" in result:
             total += 1
-            if item["pred"] == item["truth"]:
+            if result["pred"] == result["truth"]:
                 correct += 1
         else:
-            print(f"Warning: Missing 'pred' or 'truth' in item {item.get('id', 'unknown')}")
+            print(f"Warning: Missing 'pred' or 'truth' in result for the quid {result.get('id', 'unknown')}")
 
     accuracy = (correct / total) * 100 if total > 0 else 0.0
     print(f"Accuracy for experiment {experiment_id}: {accuracy:.2f}%")
