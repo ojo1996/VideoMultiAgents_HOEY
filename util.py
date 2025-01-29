@@ -155,6 +155,12 @@ def create_mas_stage1_prompt(json_data):
 
 
 def create_question_sentence(question_data:dict, shuffle_questions=False):
+    # moma-qa
+    if os.getenv("DATASET") == "momaqa":
+        prompt = "[Question]\n"
+        prompt += "Question: " + question_data["question"]
+        return prompt
+    
     prompt = "[Question and 5 Options to Solve]\n"
     prompt += "Question: " + question_data["question"]
     # Add options
