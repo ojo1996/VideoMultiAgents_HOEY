@@ -17,7 +17,7 @@ Using Azure Batch, you can run the VideoMultiAgent more speedily.
 
     - Please set the environment variables in the run_evaluation.py file.
 
-        [`Click Here to jump to the code`](https://github.com/PanasonicConnect/VideoMultiAgents/blob/feature/support-azure-batch/azure-batch/run_evaluation.py#L18-L45)
+        [`Click Here to jump to the code`](https://github.com/PanasonicConnect/VideoMultiAgents/blob/main/azure-batch/run_evaluation.py#L18-L45)
 
 
 - ### Step2 : Run the script
