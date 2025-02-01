@@ -31,3 +31,9 @@ Using Azure Batch, you can run the VideoMultiAgent more speedily.
     - Get the metrics from the cosmos db and calculate the metrics.
 
         `python3 run_collect_eval_metrics.py`
+
+## 🚀Execute the script for AutoScale Pool size of Azure Batch
+
+- ### By running the script below, the pool size in Azure Batch is automatically adjusted according to the number of tasks that need to be processed.
+
+    `python3 auto_scale_controller.py`
