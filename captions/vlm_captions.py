@@ -107,8 +107,8 @@ def generate_scene_graph_and_caption(
     original_caption: str,
     yolo_detections: List[Dict],
     client: OpenAI,
-    previous_scene_graph: Optional[List[str]] = None
-) -> Tuple[List[str], str]:
+    previous_scene_graph: Optional[List[List[str]]] = None
+) -> Tuple[List[List[str]], str]:
     """Generate scene graph and enriched caption using GPT-4-Vision"""
     
     # Encode image
@@ -123,60 +123,57 @@ def generate_scene_graph_and_caption(
     # Include previous scene graph context if available
     previous_context = ""
     if previous_scene_graph:
-        previous_context = f"\nPrevious frame's scene graph for consistency:\n" + "\n".join(previous_scene_graph)
+        previous_context = "\nPrevious frame's scene graph for consistency:\n"
+        for triplet in previous_scene_graph:
+            previous_context += f"[{triplet[0]}, {triplet[1]}, {triplet[2]}]\n"
     
     prompt = f"""Analyze this video frame using the following components:
 
-    1. Original Caption: {original_caption}
-    2. Detected Objects (YOLO):
-    {detection_text}
-    3. Previous Context:{previous_context if previous_context else " None"}
+1. Original Caption: {original_caption}
+2. Detected Objects (YOLO):
+{detection_text}
+3. Previous Context:{previous_context if previous_context else " None"}
 
-    Generate two distinct outputs:
+Generate two distinct outputs:
 
-    1. SCENE GRAPH REQUIREMENTS:
-    - Create 3-8 subject-predicate-object triplets using ONLY detected objects/caption elements
-    - Use simple present tense predicates without helpers (holds, not is_holding)
-    - Maintain spatial/temporal consistency with previous context
-    - Ensure each triplet contains two concrete entities and one relationship
-    - Valid predicates: spatial (on, near), actions (using, wearing), interactions (looking_at)
-    - Invalid examples to avoid:
-    * 'person-moves-to' (missing object)
-    * 'bottle-is_on' (incomplete)
-    * 'sachet-table' (missing predicate)
+1. SCENE GRAPH:
+Generate a list of triplets [subject, relation, object] that describe the scene.
+Each triplet MUST have exactly three elements:
+- subject: the entity performing the action or being described
+- relation: the action or relationship
+- object: the target entity or state
 
-    Example VALID triplets:
-    person-sitting_at-desk
-    laptop-displaying-content
-    hand-holding-mouse
-    bottle-next_to-keyboard
+Format each triplet as: [subject, relation, object]
 
-    Output format:
-    <scene_graph>
-    subject-predicate-object
-    ...
-    </scene_graph>
+Example triplets:
+[person, sitting_at, desk]
+[laptop, displaying, content]
+[cup, next_to, keyboard]
+[person, holding, mouse]
 
-    2. ENRICHED CAPTION REQUIREMENTS:
-    MUST PRESERVE all original caption actions/objects
-    COMBINE with detected objects/relationships naturally
-    USE temporal connectors (while, as, where, and) for flow
-    AVOID assumptions beyond visual evidence
-    MAINTAIN chronological order of events
+Requirements:
+- Each triplet must be a complete [subject, relation, object]
+- Use simple present tense for relations
+- No helper verbs (use 'holds' not 'is_holding')
+- Only use observed entities as subjects and objects
+- Relations should be actions or spatial relationships
 
-    Example transformation:
-    Original: "C moves mouse"
-    Enriched: "C moves the computer mouse while sitting at a cluttered desk containing an open laptop displaying code and a water bottle beside the keyboard."
+Output format:
+<scene_graph>
+[subject1, relation1, object1]
+[subject2, relation2, object2]
+...
+</scene_graph>
 
-    Output format:
-    <enriched_caption>Full sentence combining original and new elements</enriched_caption>
+2. ENRICHED CAPTION:
+Create a natural language description that:
+- MUST preserve all original caption actions/objects
+- Incorporates scene graph relationships
+- Uses temporal connectors (while, as, where)
+- Stays factual without assumptions
 
-    Critical constraints:
-    - NEVER omit original caption elements
-    - NEVER create relationships between undetected objects
-    - ALWAYS maintain consistent spatial relationships between frames
-    - Use ONLY lowercase with hyphens in triplets
-    - Keep captions factual without interpretations"""
+Output format:
+<enriched_caption>caption text</enriched_caption>"""
 
     try:
         response = client.chat.completions.create(
@@ -184,7 +181,7 @@ def generate_scene_graph_and_caption(
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a precise scene graph generator that creates factual, consistent descriptions. Always preserve all information from the original caption."
+                    "content": "You are a precise scene graph generator. Generate triplets in exact [subject, relation, object] format."
                 },
                 {
                     "role": "user",
@@ -213,9 +210,17 @@ def generate_scene_graph_and_caption(
         logging.info(result)
         logging.info("-" * 80)
         
-        # Extract scene graph and enriched caption
+        # Extract scene graph and convert to list of triplets
         scene_graph_text = result[result.find("<scene_graph>")+13:result.find("</scene_graph>")]
-        scene_graph_triplets = [line.strip() for line in scene_graph_text.strip().split('\n') if line.strip()]
+        # Parse triplets ensuring they're in [subject, relation, object] format
+        scene_graph_triplets = []
+        for line in scene_graph_text.strip().split('\n'):
+            line = line.strip()
+            if line.startswith('[') and line.endswith(']'):
+                # Remove brackets and split by comma
+                parts = [p.strip() for p in line[1:-1].split(',')]
+                if len(parts) == 3:  # Only accept valid triplets
+                    scene_graph_triplets.append([p.strip(' "\'') for p in parts])
         
         # Extract enriched caption
         enriched_caption = result[result.find("<enriched_caption>")+18:result.find("</enriched_caption>")]
