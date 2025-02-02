@@ -9,6 +9,53 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 import cv2
 from difflib import SequenceMatcher
 import numpy as np
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import time
+
+# Cost constants
+IMAGE_PROCESSING_COST = 0.001275  # Cost per image in low resolution mode
+INPUT_TOKEN_COST = 0.15 / 1_000_000  # Cost per input token
+OUTPUT_TOKEN_COST = 0.60 / 1_000_000  # Cost per output token
+
+class MetricsTracker:
+    def __init__(self):
+        self.total_cost = 0.0
+        self.total_time = 0.0
+        self.total_images = 0
+        self.total_input_tokens = 0
+        self.total_output_tokens = 0
+        self.processed_videos = 0
+        
+    def add_api_call(self, completion):
+        """Track costs from an API call"""
+        self.total_input_tokens += completion.usage.prompt_tokens
+        self.total_output_tokens += completion.usage.completion_tokens
+        input_cost = completion.usage.prompt_tokens * INPUT_TOKEN_COST
+        output_cost = completion.usage.completion_tokens * OUTPUT_TOKEN_COST
+        self.total_cost += input_cost + output_cost
+        
+    def add_image_processing(self):
+        """Track costs from image processing"""
+        self.total_images += 1
+        self.total_cost += IMAGE_PROCESSING_COST
+        
+    def log_metrics(self):
+        """Log current metrics"""
+        logging.info(f"""
+Current Processing Metrics:
+--------------------------
+Processed Videos: {self.processed_videos}
+Total Images Processed: {self.total_images}
+Total Input Tokens: {self.total_input_tokens}
+Total Output Tokens: {self.total_output_tokens}
+Total Cost: ${self.total_cost:.2f}
+Total Time: {self.total_time:.2f} seconds
+Average Cost per Video: ${(self.total_cost / max(1, self.processed_videos)):.2f}
+Average Time per Video: {(self.total_time / max(1, self.processed_videos)):.2f} seconds
+""")
+
+# Initialize global metrics tracker
+metrics = MetricsTracker()
 
 def setup_logging():
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -111,6 +158,9 @@ def generate_scene_graph_and_caption(
 ) -> Tuple[List[List[str]], str]:
     """Generate scene graph and enriched caption using GPT-4-Vision"""
     
+    # Track image processing cost
+    metrics.add_image_processing()
+    
     # Encode image
     base64_image = encode_image(frame_path)
     
@@ -202,6 +252,9 @@ Output format:
             max_tokens=500
         )
         
+        # Track API call metrics
+        metrics.add_api_call(response)
+        
         result = response.choices[0].message.content
         
         # Log the response
@@ -235,19 +288,56 @@ Output format:
         if os.path.exists(frame_path):
             os.remove(frame_path)
 
+def process_chunk(
+    chunk_data: Tuple[int, Tuple[int, int, str], str, List[Dict], OpenAI, List[List[str]], str],
+) -> Dict:
+    """Process a single chunk of video in parallel"""
+    chunk_idx, (start_frame, end_frame, base_caption), video_path, unique_detections, client, previous_scene_graph, video_id = chunk_data
+    
+    try:
+        logging.info(f"Processing chunk {chunk_idx} (frames {start_frame}-{end_frame}) for video {video_id}")
+        
+        # Get middle frame for visual reference
+        mid_frame = (start_frame + end_frame) // 2
+        
+        # Extract representative frame from video
+        frame_path = extract_frame(video_path, mid_frame)
+        
+        # Generate scene graph and enriched caption
+        scene_graph_triplets, enriched_caption = generate_scene_graph_and_caption(
+            frame_path,
+            base_caption,
+            unique_detections,
+            client,
+            previous_scene_graph
+        )
+        
+        return {
+            'chunk_idx': chunk_idx,
+            'time_start': start_frame,
+            'time_end': end_frame,
+            'original_captions': [base_caption],  # Will be updated with full list later
+            'scene_graph': scene_graph_triplets,
+            'enriched_caption': enriched_caption,
+            'yolo_detections': unique_detections
+        }
+        
+    except Exception as e:
+        logging.error(f"Error processing chunk {chunk_idx}: {str(e)}")
+        raise
+
 def process_video(
     video_path: str,
     video_id: str,
     captions: List[str],
     yolo_data: Dict,
     client: OpenAI,
-    output_path: str
+    output_path: str,
+    max_workers: int = 8
 ):
-    """Process a single video"""
+    """Process a single video with parallel chunk processing"""
+    start_time = time.time()
     try:
-        results = []
-        previous_scene_graph = None
-        
         # Get YOLO detections for this video
         video_yolo_data = yolo_data.get(video_id, {})
         if not video_yolo_data:
@@ -256,13 +346,11 @@ def process_video(
         # Find chunks of similar captions
         caption_chunks = find_caption_chunks(captions)
         
+        # Prepare chunk data for parallel processing
+        chunk_data = []
+        previous_scene_graph = None
+        
         for chunk_idx, (start_frame, end_frame, base_caption) in enumerate(caption_chunks):
-            logging.info(f"Processing chunk {chunk_idx+1}/{len(caption_chunks)} (frames {start_frame}-{end_frame})")
-            
-            # Get middle frame of chunk for visual reference
-            mid_frame = (start_frame + end_frame) // 2
-            frame_key = f"{mid_frame:04d}.jpg"
-            
             # Collect all YOLO detections for this chunk
             chunk_detections = []
             for frame_idx in range(start_frame, end_frame + 1):
@@ -278,43 +366,59 @@ def process_video(
                     seen_classes.add(det['class_name'])
                     unique_detections.append(det)
             
-            # Log YOLO detections for debugging
-            logging.info(f"Found {len(unique_detections)} unique object types in chunk")
-            for det in unique_detections:
-                logging.debug(f"Detection: {det['class_name']}")
-            
-            # Extract representative frame from video
-            frame_path = extract_frame(video_path, mid_frame)
-            
-            # Generate scene graph and enriched caption
-            scene_graph_triplets, enriched_caption = generate_scene_graph_and_caption(
-                frame_path,
-                base_caption,  # Use base caption for generation
+            # Prepare data for this chunk
+            chunk_data.append((
+                chunk_idx,
+                (start_frame, end_frame, base_caption),
+                video_path,
                 unique_detections,
                 client,
-                previous_scene_graph
-            )
+                previous_scene_graph,
+                video_id
+            ))
+        
+        # Process chunks in parallel
+        results = []
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_chunk = {
+                executor.submit(process_chunk, data): data
+                for data in chunk_data
+            }
             
-            # Store all original captions for this chunk
-            chunk_captions = captions[start_frame:end_frame + 1]
-            
-            # Create one result entry for the entire chunk
-            results.append({
-                'chunk_idx': chunk_idx,
-                'time_start': start_frame,
-                'time_end': end_frame,
-                'original_captions': chunk_captions,
-                'scene_graph': scene_graph_triplets,
-                'enriched_caption': enriched_caption,
-                'yolo_detections': unique_detections
-            })
-            
-            # Update previous scene graph for next chunk
-            previous_scene_graph = scene_graph_triplets
-            
-            # Save results after each chunk
-            save_results(output_path, video_id, results)
-            
+            # Collect results as they complete
+            for future in as_completed(future_to_chunk):
+                chunk_idx = future_to_chunk[future][0]
+                try:
+                    chunk_result = future.result()
+                    # Update with full list of original captions
+                    start_frame = chunk_result['time_start']
+                    end_frame = chunk_result['time_end']
+                    chunk_result['original_captions'] = captions[start_frame:end_frame + 1]
+                    results.append(chunk_result)
+                    logging.info(f"Completed chunk {chunk_idx} for video {video_id}")
+                    
+                    # Update previous scene graph for next chunks
+                    if chunk_idx < len(caption_chunks) - 1:
+                        next_chunk_data = chunk_data[chunk_idx + 1]
+                        next_chunk_data = list(next_chunk_data)
+                        next_chunk_data[5] = chunk_result['scene_graph']
+                        chunk_data[chunk_idx + 1] = tuple(next_chunk_data)
+                    
+                except Exception as e:
+                    logging.error(f"Chunk {chunk_idx} generated an exception: {str(e)}")
+                    raise
+        
+        # Sort results by chunk_idx
+        results.sort(key=lambda x: x['chunk_idx'])
+        
+        # Save all results
+        save_results(output_path, video_id, results)
+        
+        # Update metrics
+        metrics.processed_videos += 1
+        metrics.total_time += time.time() - start_time
+        metrics.log_metrics()
+        
         logging.info(f"Completed processing video {video_id}")
         
     except Exception as e:
@@ -324,12 +428,16 @@ def process_video(
 def save_results(output_path: str, video_id: str, results: List[Dict]):
     """Save results for a video"""
     try:
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        
         # Create or load existing results
         if os.path.exists(output_path):
             with open(output_path, 'r') as f:
                 try:
                     data = json.load(f)
                 except json.JSONDecodeError:
+                    logging.warning(f"Could not parse existing file {output_path}, creating new")
                     data = {}
         else:
             data = {}
@@ -337,11 +445,11 @@ def save_results(output_path: str, video_id: str, results: List[Dict]):
         # Update results for this video
         data[video_id] = results
         
-        # Save to file
+        # Save to file with proper JSON serialization
         with open(output_path, 'w') as f:
-            json.dump(data, f, indent=2, default=lambda x: x if not isinstance(x, list) else x)
+            json.dump(data, f, indent=2)
             
-        logging.info(f"Saved results for video {video_id}")
+        logging.info(f"Saved results for video {video_id} to {output_path}")
         
     except Exception as e:
         logging.error(f"Error saving results: {str(e)}")
@@ -357,26 +465,22 @@ def main():
         videos_path = os.path.join(base_path, "egoschema")
         captions_path = os.path.join(base_path, "egoschema_captions.json")
         yolo_path = os.path.join(base_path, "egoschema_yolo.json")
-        output_path = os.path.join(base_path, "egoschema_vlm_captions.json")
+        output_path = os.path.join(base_path, "egoschema_vlm_captions_test.json")  # Different output file for test run
         
         # Load data
         logging.info("Loading caption data...")
         with open(captions_path, 'r') as f:
-            captions_data = json.load(f)
+            all_captions_data = json.load(f)
         
         logging.info("Loading YOLO detection data...")
         with open(yolo_path, 'r') as f:
             yolo_data = json.load(f)
             
-        # Log some statistics about the data
-        logging.info(f"Loaded {len(captions_data)} videos with captions")
-        logging.info(f"Loaded YOLO detections for {len(yolo_data)} videos")
+        # Select only first 10 videos for estimation
+        captions_data = dict(list(all_captions_data.items())[:10]) # TODO: Remove this 10
+        total_dataset_videos = len(all_captions_data)  # Store total number of videos
+        logging.info(f"Selected first 10 videos for estimation (out of {total_dataset_videos} total videos)")
         
-        # Check for mismatches
-        missing_yolo = set(captions_data.keys()) - set(yolo_data.keys())
-        if missing_yolo:
-            logging.warning(f"Missing YOLO data for videos: {missing_yolo}")
-            
         # Initialize OpenAI client
         client = OpenAI()
         
@@ -414,12 +518,29 @@ def main():
                     captions,
                     yolo_data,
                     client,
-                    output_path
+                    output_path,
+                    max_workers=8  # Explicitly set to 8 workers
                 )
                 
             except Exception as e:
                 logging.error(f"Error processing video {video_id}: {str(e)}")
                 continue
+        
+        # Final metrics report
+        logging.info("\nFinal Metrics Report:")
+        logging.info("===================")
+        metrics.log_metrics()
+        
+        # Extrapolate to full dataset using total_dataset_videos
+        estimated_total_cost = metrics.total_cost * (total_dataset_videos / metrics.processed_videos)
+        estimated_total_time = metrics.total_time * (total_dataset_videos / metrics.processed_videos)
+        
+        logging.info(f"""
+Extrapolated Estimates for Full Dataset ({total_dataset_videos} videos):
+---------------------------------------------------------------------
+Estimated Total Cost: ${estimated_total_cost:.2f}
+Estimated Total Time: {estimated_total_time/3600:.1f} hours
+""")
         
         logging.info("Processing completed successfully")
         
