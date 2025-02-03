@@ -224,10 +224,17 @@ def create_stage2_organizer_prompt(question_data:dict, shuffle_questions=False):
 
 def set_environment_variables(dataset:str, video_id:str, qa_json_data:dict):
     if dataset == "egoschema": index_name = video_id
-    if dataset == "nextqa"   : index_name = video_id.split("_")[0]
+    elif dataset == "nextqa" : index_name = video_id.split("_")[0]
 
-    if dataset == "egoschema": os.environ["VIDEO_FILE_NAME"] = video_id
-    if dataset == "nextqa"   : os.environ["VIDEO_FILE_NAME"] = map_vid[video_id.split("_")[0]]
+    if dataset == "egoschema":
+        os.environ["VIDEO_FILE_NAME"] = video_id
+    elif dataset == "nextqa":
+        # mapping file for nextqa
+        map_vid = "/root/nas_nextqa/nextqa/map_vid_vidorID.json"
+        if dataset == "nextqa":
+            with open(map_vid, "r") as f:
+                map_vid = json.load(f)
+                os.environ["VIDEO_FILE_NAME"] = map_vid[video_id.split("_")[0]]
 
     os.environ["VIDEO_INDEX"]     = index_name
     os.environ["QA_JSON_STR"]     = json.dumps(qa_json_data)
@@ -255,41 +262,6 @@ def post_process(response):
         return found_options[0]
     else: # If multiple or no options are found, return -1
         return -1
-
-
-def extract_expert_info_json(data):
-    result = {}
-
-    json_start = data.find('{')
-    json_end = data.rfind('}') + 1
-
-    json_data = data[json_start:json_end]
-
-    if json_start != -1:
-        try:
-            json_extract = json.loads(json_data)
-            for key, value in json_extract.items():
-                if "ExpertName" in key and "Prompt" not in key:
-                    number = re.findall(r'\d+', key)[0]
-                    expert_key = f"ExpertName{number}"
-                    prompt_key = f"ExpertName{number}Prompt"
-                    expert_name = value
-                    prompt_text = json_extract.get(prompt_key, "")
-
-                    result[expert_key] = expert_name.strip().replace('"', "'")
-                    result[prompt_key] = prompt_text.strip().replace('"', "'")
-        except json.JSONDecodeError:
-            print("JSONDecodeError: Failed to extract expert information from the response.")
-
-    return result
-
-
-def extract_expert_info(data):
-    result = extract_expert_info_json(data)
-    if len([k for k in result if "ExpertName" in k]) >= 2 and len([k for k in result if "Prompt" in k]) >= 3:
-        return result
-    else:
-        return None
 
 
 def read_json_file(file_path):
