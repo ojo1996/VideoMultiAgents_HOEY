@@ -63,7 +63,7 @@ def calculate_experiment_accuracy(connection_string: str, database_name: str, ex
             if result["pred"] == result["truth"]:
                 correct += 1
         else:
-            print(f"Warning: Missing 'pred' or 'truth' in result for the quid {result.get('id', 'unknown')}")
+            print(f"Warning: Missing 'pred' or 'truth' in result {result.get('id', 'unknown')}")
 
     accuracy = (correct / total) * 100 if total > 0 else 0.0
     print(f"Accuracy for experiment {experiment_id}: {accuracy:.2f}%")
