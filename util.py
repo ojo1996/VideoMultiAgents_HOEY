@@ -222,6 +222,7 @@ def create_stage2_organizer_prompt():
 
             "[Output Format]\n"
             "Your response should be formatted as follows:\n"
+            "Note: If any part of the output is a number, represent it as a digit (e.g., '1') rather than as a word (e.g., 'one').\n"
             "- Additional Discussion Needed: [YES/NO]\n"
             "- Pred: [Your final answer, stated as a single word or phrase (e.g., 'basketball player', 'preparing food')]\n"
             "- Explanation: Provide a detailed explanation, including reasons for requiring additional discussion or the reasoning behind the final answer."
