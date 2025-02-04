@@ -47,3 +47,9 @@ jobs:
         tags: |
           ${{secrets.ACR_URL}}/video-multi-agents:latest
           ${{secrets.ACR_URL}}/video-multi-agents:${{GITHUB.SHA}}
+
+    - name: Display Docker Image Tags
+      run: |
+        echo "Docker Image Tags generated:"
+        echo "${{ secrets.ACR_URL }}/video-multi-agents:latest"
+        echo "${{ secrets.ACR_URL }}/video-multi-agents:${{ GITHUB.SHA }}"
