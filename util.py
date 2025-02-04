@@ -260,8 +260,10 @@ def post_process(message:str):
             response_data = ask_gpt4_omni(openai_api_key=os.getenv("OPENAI_API_KEY"), prompt_text=prompt)
             prediction_num = post_process(response_data)
         return prediction_num
-    else:
-        return message # momaqa
+    elif os.getenv("DATASET") == "momaqa":
+        prompt = message + "\n\nExtract and output only the content that immediately follows \"- Pred:\" on its line. Do not include any additional text or formatting."
+        response_data = ask_gpt4_omni(openai_api_key=os.getenv("OPENAI_API_KEY"), prompt_text=prompt)
+        return response_data
 
 
 def post_process_5choice(response):
