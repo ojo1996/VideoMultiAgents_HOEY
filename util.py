@@ -379,7 +379,7 @@ def get_video_summary(summary_cache_json_path:str, vid:str):
 
     # Check if the vid result is already in the JSON
     if vid in video_summaries:
-        return json.dumps(video_summaries[vid], ensure_ascii=False, indent=4)
+        return video_summaries[vid]
     else:
         print(f"Summary for vid '{vid}' not found in JSON.")
         return ""
