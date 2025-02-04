@@ -367,6 +367,24 @@ def save_result(file_path, video_id:str, expert_info:dict, agent_prompts:dict, a
             portalocker.unlock(f)
 
 
+def get_video_summary(summary_cache_json_path:str, vid:str):
+    # Check if the JSON file exists
+    if not summary_cache_json_path or not os.path.exists(summary_cache_json_path):
+        print("file not found {}".format(summary_cache_json_path))
+        return ""
+
+    # Load the JSON file
+    with open(summary_cache_json_path, "r", encoding="utf-8") as f:
+        video_summaries = json.load(f)
+
+    # Check if the vid result is already in the JSON
+    if vid in video_summaries:
+        return json.dumps(video_summaries[vid], ensure_ascii=False, indent=4)
+    else:
+        print(f"Summary for vid '{vid}' not found in JSON.")
+        return ""
+
+
 def create_summary_of_video(openai_api_key="", temperature=0.0, image_dir="", vid="", sampling_interval_sec=3, segment_frames_num=90):
     
     print("create_summary_of_video function called")
