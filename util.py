@@ -195,29 +195,37 @@ def create_stage2_agent_prompt(question_data:dict, generated_expert_prompt="", s
     return prompt
 
 
-def create_stage2_organizer_prompt(question_data:dict, shuffle_questions=False):
+def create_stage2_organizer_prompt():
 
-    organizer_prompt = (
-        "[Instructions]\n"
-        "You are the organizer of a discussion. Your task is to analyze the opinions of other Agents and make a final decision.\n"
-        "Your output should be one of the following options: OptionA, OptionB, OptionC, OptionD, OptionE, along with an explanation.\n"
-        "The correct answer is always within these 5 options and is a simple and straightforward choice.\n"
-        "Provide a step-by-step explanation of your reasoning.\n"
-        "You should respect the opinions of other experts. Also, include the opinions of other experts in your explanation.\n\n"
+    if os.getenv("DATASET") == "egoschema" or os.getenv("DATASET") == "nextqa":
+        organizer_prompt = (
+            "[Instructions]\n"
+            "You are the organizer of a discussion. "
+            "Your task is to summarize the opinions of three Agents, determine whether further discussion is necessary, and, if the discussion is already concluded, provide the final decision.\n"
+            "Your output should be one of the following options: OptionA, OptionB, OptionC, OptionD, OptionE, along with an explanation.\n"
+            "The correct answer is always within these 5 options.\n"
+            "Base your decision primarily on a majority vote. If the opinions of the three Agents are divided, initiate a follow-up discussion to reach a consensus.\n\n"
 
-        # "Exclude options that contain unnecessary embellishments, such as subjective adverbs or clauses that cannot be objectively determined, and consider only the remaining options.\n"
-        # "Place importance on clear and concise expression, and avoid choosing options that include unnecessary embellishments\n"
-        # "Avoid choosing options that include adverbs and other unnecessary embellishments (especially those indicating properties or states), and place importance on comprehensive and accurate descriptions of objects and actions in clear sentences.\n\n"
-        "Avoid choosing options that include adverbs and other unnecessary embellishments, especially those indicating properties or states\n"
-        "Place importance on comprehensive and accurate descriptions of objects and actions in sentences.\n\n"
+            "[Output Format]\n"
+            "Your response should be formatted as follows:\n"
+            "- Additional Discussion Needed: [YES/NO]\n"
+            "- Pred: OptionX (If additional discussion is needed, provide the current leading candidate.)\n"
+            "- Explanation: Provide a detailed explanation, including reasons for requiring additional discussion or the reasoning behind the final decision."
+        )
+    elif os.getenv("DATASET") == "momaqa":
+        organizer_prompt = (
+            "[Instructions]\n"
+            "You are the organizer of a discussion. "
+            "Your task is to summarize the opinions of three Agents, determine whether further discussion is necessary, and, if the discussion is already concluded, provide the final answer.\n"
+            "Your output should be a concise and clear answer to the question, along with an explanation.\n"
+            "Base your decision primarily on a majority vote. If the opinions of the three Agents are divided, initiate a follow-up discussion to reach a consensus.\n\n"
 
-        f"{create_question_sentence(question_data, shuffle_questions=False)}\n\n"
-
-        "[Output Format]\n"
-        "Your response should be formatted as follows:\n"
-        "Pred: OptionX\n"
-        "Explanation: Your detailed explanation here.\n\n"
-    )
+            "[Output Format]\n"
+            "Your response should be formatted as follows:\n"
+            "- Additional Discussion Needed: [YES/NO]\n"
+            "- Pred: [Your final answer, stated as a single word or phrase (e.g., 'basketball player', 'preparing food')]\n"
+            "- Explanation: Provide a detailed explanation, including reasons for requiring additional discussion or the reasoning behind the final answer."
+        )
 
     return organizer_prompt
 

@@ -157,10 +157,10 @@ def execute_stage2(expert_info):
     agent2_node = functools.partial(agent_node, agent=agent2, name="agent2")
 
     agent3_prompt = create_stage2_agent_prompt(target_question_data, expert_info["ExpertName3Prompt"], shuffle_questions=False)
-    agent3 = create_agent(llm_openai, [retrieve_video_clip_captions], system_prompt=agent3_prompt)
+    agent3 = create_agent(llm_openai, tools, system_prompt=agent3_prompt)
     agent3_node = functools.partial(agent_node, agent=agent3, name="agent3")
 
-    organizer_prompt = create_stage2_organizer_prompt(target_question_data, shuffle_questions=False)
+    organizer_prompt = create_stage2_organizer_prompt()
     organizer_agent = create_agent(llm_openai, [dummy_tool], system_prompt=organizer_prompt)
     organizer_node = functools.partial(agent_node, agent=organizer_agent, name="organizer")
 
