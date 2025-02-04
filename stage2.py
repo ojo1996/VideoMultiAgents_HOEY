@@ -210,12 +210,8 @@ def execute_stage2(expert_info):
         {"recursion_limit": 20}
     )
 
-    prediction_num = post_process(agents_result["messages"][-1].content)
-    if prediction_num == -1:
-        prompt = agents_result["messages"][-1].content + "\n\nPlease retrieve the final answer from the sentence above. Your response should be one of the following options: Option A, Option B, Option C, Option D, Option E."
-        response_data = ask_gpt4_omni(openai_api_key=openai_api_key, prompt_text=prompt)
-        prediction_num = post_process(response_data)
-    if prediction_num == -1:
+    prediction_result = post_process(agents_result["messages"][-1].content)
+    if prediction_result == -1:
         print ("***********************************************************")
         print ("Error: The result is -1. So, retry the stage2.")
         print ("***********************************************************")
@@ -227,10 +223,13 @@ def execute_stage2(expert_info):
     print ("*********** Stage2 Result **************")
     print(json.dumps(agents_result_dict, indent=2, ensure_ascii=False))
     print ("****************************************")
-    print(f"Truth: {target_question_data['truth']}, Pred: {prediction_num} (Option{['A', 'B', 'C', 'D', 'E'][prediction_num]})" if 0 <= prediction_num <= 4 else "Error: Invalid result_data value")
+    if os.getenv("DATASET") == "egoschema" or os.getenv("DATASET") == "nextqa":
+        print(f"Truth: {target_question_data['truth']}, Pred: {prediction_result} (Option{['A', 'B', 'C', 'D', 'E'][prediction_result]})" if 0 <= prediction_result <= 4 else "Error: Invalid result_data value")
+    elif os.getenv("DATASET") == "momaqa":
+        print (f"Truth: {target_question_data['truth']}, Pred: {prediction_result}")
     print ("****************************************")
 
-    return prediction_num, agents_result_dict, agent_prompts
+    return prediction_result, agents_result_dict, agent_prompts
 
 
 if __name__ == "__main__":

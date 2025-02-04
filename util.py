@@ -251,7 +251,20 @@ def set_environment_variables(dataset:str, video_id:str, qa_json_data:dict):
     print ("{} : {}".format(video_id, index_name))
 
 
-def post_process(response):
+def post_process(message:str):
+
+    if os.getenv("DATASET") == "egoschema" or os.getenv("DATASET") == "nextqa":
+        prediction_num = post_process_5choice(message)
+        if prediction_num == -1:
+            prompt = message + "\n\nPlease retrieve the final answer from the sentence above. Your response should be one of the following options: Option A, Option B, Option C, Option D, Option E."
+            response_data = ask_gpt4_omni(openai_api_key=os.getenv("OPENAI_API_KEY"), prompt_text=prompt)
+            prediction_num = post_process(response_data)
+        return prediction_num
+    else:
+        return message # momaqa
+
+
+def post_process_5choice(response):
     response = response.lower()
     option_patterns = {
         "option a": 0,
