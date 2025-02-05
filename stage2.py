@@ -21,7 +21,7 @@ from langchain_ollama import ChatOllama
 
 from tools.dummy_tool import dummy_tool
 from tools.retrieve_video_clip_captions import retrieve_video_clip_captions
-from tools.retrieve_video_clip_captions_with_gaph_data import retrieve_video_clip_captions_with_gaph_data
+from tools.retrieve_video_clip_captions_with_graph_data import retrieve_video_clip_captions_with_graph_data
 # from tools.retrieve_video_clip_caption_with_llm import retrieve_video_clip_caption_with_llm
 from tools.analyze_video_gpt4o import analyze_video_gpt4o
 # from tools.analyze_video_based_on_the_checklists import analyze_video_based_on_the_checklist
@@ -32,7 +32,7 @@ from util import post_process, ask_gpt4_omni, create_stage2_agent_prompt, create
 
 
 openai_api_key = os.getenv("OPENAI_API_KEY")
-tools = [analyze_video_gpt4o_with_adaptive_frame_sampling, retrieve_video_clip_captions_with_gaph_data]
+tools = [analyze_video_gpt4o_with_adaptive_frame_sampling, retrieve_video_clip_captions_with_graph_data]
 # tools = [analyze_video_gpt4o_with_adaptive_frame_sampling, retrieve_video_clip_captions]
 #tools = [analyze_video_gpt4o, retrieve_video_clip_captions, analyze_video_based_on_the_checklist]
 # tools = [analyze_video_gpt4o_with_keyword, retrieve_video_clip_captions]
@@ -158,7 +158,7 @@ def execute_stage2(expert_info):
     agent2_node = functools.partial(agent_node, agent=agent2, name="agent2")
 
     agent3_prompt = create_stage2_agent_prompt(target_question_data, expert_info["ExpertName3Prompt"], shuffle_questions=False)
-    agent3 = create_agent(llm_openai, [retrieve_video_clip_captions_with_gaph_data], system_prompt=agent3_prompt)
+    agent3 = create_agent(llm_openai, [retrieve_video_clip_captions_with_graph_data], system_prompt=agent3_prompt)
     agent3_node = functools.partial(agent_node, agent=agent3, name="agent3")
 
     organizer_prompt = create_stage2_organizer_prompt(target_question_data, shuffle_questions=False)
