@@ -5,7 +5,7 @@ from langchain.agents import tool
 
 
 @tool
-def retrieve_video_clip_captions_with_gaph_data() -> list[str]:
+def retrieve_video_clip_captions_with_graph_data() -> list[str]:
     """
     Image captioning tool.
 
@@ -44,7 +44,7 @@ def retrieve_video_clip_captions_with_gaph_data() -> list[str]:
 
 if __name__ == "__main__":
 
-    data = retrieve_video_clip_captions_with_gaph_data()
+    data = retrieve_video_clip_captions_with_graph_data()
     for caption in data:
         print (caption)
     print ("length of data: ", len(data))

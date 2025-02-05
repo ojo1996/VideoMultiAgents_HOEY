@@ -3,7 +3,7 @@ import os
 import json
 from langchain.agents import tool
 # from .retrieve_video_clip_captions import retrieve_video_clip_captions
-from .retrieve_video_clip_captions_with_gaph_data import retrieve_video_clip_captions_with_gaph_data
+from .retrieve_video_clip_captions_with_graph_data import retrieve_video_clip_captions_with_graph_data
 
 def adaptive_frame_sampling(image_dir: str, question:str, captions:list, video_filename:str):
 
@@ -85,8 +85,8 @@ def analyze_video_gpt4o_with_adaptive_frame_sampling(gpt_prompt:str) -> str:
 
     frames = image_dir + "/" + video_filename
 
-    # captions = retrieve_video_clip_captions({"video_index": video_filename, "captions_file": os.getenv("CAPTIONS_FILE"), "dataset": os.getenv("DATASET")})
-    captions = retrieve_video_clip_captions_with_gaph_data({"video_index": video_filename, "captions_file": os.getenv("CAPTIONS_FILE"), "dataset": os.getenv("DATASET")})
+    # captions = retrieve_video_clip_captions({"video_filename": video_filename, "captions_file": os.getenv("CAPTIONS_FILE"), "dataset": os.getenv("DATASET")})
+    captions = retrieve_video_clip_captions_with_graph_data({"video_filename": video_filename, "captions_file": os.getenv("CAPTIONS_FILE"), "dataset": os.getenv("DATASET")})
     # print(captions)
     selected_frames, frame_indices = adaptive_frame_sampling(frames, question, captions, video_filename)
     frame_num = int(os.getenv("FRAME_NUM"))
