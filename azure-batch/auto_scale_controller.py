@@ -172,6 +172,11 @@ def manage_pools(batch_client: BatchServiceClient, completed_jobs: set, max_node
     # For each pool, we'll sum active tasks from jobs that are NOT in the "completed_jobs" cache
     for pool_id, job_ids in pool_job_mapping.items():
 
+        # 0. Skip if pool_id contain "debug"
+        if "debug" in pool_id.lower():
+            print(f"Pool '{pool_id}' contains 'debug'. Skipping this pool.")
+            continue
+
         # 0. Skip if pool is currently resizing
         if is_pool_resizing(batch_client, pool_id):
             print(f"Pool '{pool_id}' is currently resizing. Skipping this iteration.")
