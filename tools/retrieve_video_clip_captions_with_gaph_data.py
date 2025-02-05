@@ -36,7 +36,7 @@ def retrieve_video_clip_captions_with_gaph_data() -> list[str]:
         timestamped_caption = f"{timestamp}: {enriched_caption}"
         timestamped_captions.append(timestamped_caption)
 
-    # print(timestamped_captions)
+    print(timestamped_captions)
     return timestamped_captions
 
 
