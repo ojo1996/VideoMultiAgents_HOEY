@@ -15,12 +15,14 @@ def retrieve_video_clip_captions_with_gaph_data() -> list[str]:
     list[str]: A list of captions for the video.
     """
 
-    print("Called the Image captioning tool.")
+    print("Called the Image captioning tool from inside the tool")
 
     video_index   = os.getenv("VIDEO_INDEX")
+    print("video_index: ", video_index)
     captions_file = os.getenv("CAPTIONS_FILE")
+    print("captions_file: ", captions_file)
     dataset       = os.getenv("DATASET")
-
+    print("dataset: ", dataset)
     with open(captions_file,"r") as f:
         captions_data = json.load(f)
         
