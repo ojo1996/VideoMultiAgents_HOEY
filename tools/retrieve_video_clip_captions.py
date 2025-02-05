@@ -17,14 +17,14 @@ def retrieve_video_clip_captions() -> list[str]:
 
     print("Called the Image captioning tool.")
 
-    video_index   = os.getenv("VIDEO_INDEX")
+    video_filename   = os.getenv("VIDEO_FILE_NAME") 
     captions_file = os.getenv("CAPTIONS_FILE")
     dataset       = os.getenv("DATASET")
 
     with open(captions_file, "r") as f:
         captions_data = json.load(f)
 
-    captions = captions_data.get(video_index, [])
+    captions = captions_data.get(video_filename, [])
     result = []
     previous_caption = None
 
