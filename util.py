@@ -11,6 +11,7 @@ import glob
 import base64
 import portalocker
 from mimetypes import guess_type
+import numpy as np
 
 
 # Function to encode a local image into data URL 
@@ -31,7 +32,6 @@ def local_image_to_data_url(image_path):
 @retry(tries=3, delay=3)
 def ask_gpt4_omni(openai_api_key="", prompt_text="", temperature=0.0, image_dir="", vid="", frame_num=18, detail="low", use_selected_images=None):
     model_name = "gpt-4o"
-    # model_name = "gpt-4o-mini"
 
     client = OpenAI(api_key=openai_api_key)
 
@@ -46,10 +46,15 @@ def ask_gpt4_omni(openai_api_key="", prompt_text="", temperature=0.0, image_dir=
                 data_url = local_image_to_data_url(image_path)
                 frames.append({ "type": "image_url", "image_url": { "url": data_url, "detail": detail } })
         else:
-            step = len(frame_path_list) // frame_num
-            start = random.randint(0, int(len(frame_path_list) / frame_num))
-            for i in range(start, len(frame_path_list), step):
-                data_url = local_image_to_data_url(frame_path_list[i])
+            if len(frame_path_list) <= frame_num:
+                selected_paths = frame_path_list
+            else:
+                # 均等間隔でサンプリングするためのインデックスを算出
+                indices = [int(round(x)) for x in np.linspace(0, len(frame_path_list) - 1, frame_num)]
+                selected_paths = [frame_path_list[i] for i in indices]
+
+            for image_path in selected_paths:
+                data_url = local_image_to_data_url(image_path)
                 frames.append({ "type": "image_url", "image_url": { "url": data_url, "detail": detail } })
 
         response = client.chat.completions.create(
