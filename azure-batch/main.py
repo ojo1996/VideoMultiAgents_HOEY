@@ -24,7 +24,7 @@ if os.getenv("DATASET") == "egoschema":
     os.environ["SUMMARY_INFO"] = json.dumps(get_video_summary(os.getenv("SUMMARY_CACHE_JSON_PATH"), os.getenv("VIDEO_FILE_NAME")))
 elif os.getenv("DATASET") == "nextqa":
     os.environ["CAPTIONS_FILE"] = "/root/VideoMultiAgents/nextqa_llava1.5_captions.json"
-    os.environ["FRAME_NUM"] = str(32)
+    os.environ["FRAME_NUM"] = str(90)
     os.environ["SUMMARY_CACHE_JSON_PATH"] = "/root/VideoMultiAgents/nextqa_summary_cache.json"
     os.environ["VIDEOTREE_RESULTS_PATH"] = "/root/VideoMultiAgents/nextqa_videotree_result.json"
     os.environ["SUMMARY_INFO"] = json.dumps(get_video_summary(os.getenv("SUMMARY_CACHE_JSON_PATH"), os.getenv("CONTAINER_NAME")))
