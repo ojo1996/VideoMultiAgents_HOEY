@@ -29,7 +29,7 @@ fi
 # repository information
 REPO="PanasonicConnect/VideoMultiAgents"
 TAG="for_file_share"
-FILES=("egoschema_summary_cache.json" "egoschema_lavila_captions.json" "egoschema_videotree_result.json" "momaqa_summary_cache.json" "nextqa_llava1.5_captions.json" "graph_captions_1500.json")
+FILES=("egoschema_summary_cache.json" "egoschema_lavila_captions.json" "egoschema_videotree_result.json" "momaqa_summary_cache.json" "nextqa_llava1.5_captions.json" "graph_captions_1500.json" "graph_captions_1500_2500.json")
 
 echo "Fetching release assets..."
 ASSETS_JSON=$(curl -sL -H "Authorization: token $GITHUB_TOKEN" \
