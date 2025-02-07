@@ -204,7 +204,7 @@ def execute_stage2(expert_info):
     print ("****************************************")
     agents_result = graph.invoke(
         {"messages": [HumanMessage(content=input_message, name="system")], "next": "agent1"},
-        {"recursion_limit": 20}
+        {"recursion_limit": 20, "stream": False}
     )
 
     prediction_result = post_process(agents_result["messages"][-1].content)
