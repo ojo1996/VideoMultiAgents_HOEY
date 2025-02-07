@@ -10,14 +10,7 @@ from langchain.output_parsers.openai_functions import JsonOutputFunctionsParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-from langchain_groq import ChatGroq
-from langchain_ollama import ChatOllama
 
-# for llama3
-# import transformers
-# import torch
-# from langchain_huggingface.llms.huggingface_pipeline import HuggingFacePipeline
-# from langchain_huggingface import ChatHuggingFace
 
 from tools.dummy_tool import dummy_tool
 from tools.retrieve_video_clip_captions import retrieve_video_clip_captions
@@ -38,32 +31,17 @@ tools = [analyze_video_gpt4o, retrieve_video_clip_captions]
 
 llm = ChatOpenAI(
     api_key=openai_api_key,
-    model='o1',
-    temperature=1.0,
+    model='gpt-4o',
+    temperature=0.0,
     disable_streaming=True
     )
 
 llm_openai = ChatOpenAI(
     api_key=openai_api_key,
-    model='o1',
-    temperature=1.0, # o1 model only sippors temperature 1.0
+    model='gpt-4o',
+    temperature=0.7, # o1 model only sippors temperature 1.0
     disable_streaming=True
     )
-
-# groq_api_key = os.getenv("GROQ_API_KEY")
-# llm_groq = ChatGroq(
-#     temperature=0,
-#     model="llama-3.1-70b-versatile",
-#     # model="llama3-groq-70b-8192-tool-use-preview",
-#     # model="llama3-8b-8192",
-#     api_key=groq_api_key
-# )
-
-# llm_ollama = ChatOllama(
-#     model="llama3.1:70b",
-#     temperature=0.0,
-#     streaming=False
-#     )
 
 
 def create_agent(llm, tools: list, system_prompt: str):
