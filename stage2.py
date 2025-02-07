@@ -40,14 +40,14 @@ llm = ChatOpenAI(
     api_key=openai_api_key,
     model='o1',
     temperature=1.0,
-    streaming=False
+    disable_streaming=True
     )
 
 llm_openai = ChatOpenAI(
     api_key=openai_api_key,
     model='o1',
     temperature=1.0, # o1 model only sippors temperature 1.0
-    streaming=False
+    disable_streaming=True
     )
 
 # groq_api_key = os.getenv("GROQ_API_KEY")
