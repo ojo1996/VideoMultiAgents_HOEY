@@ -46,7 +46,7 @@ llm = ChatOpenAI(
 llm_openai = ChatOpenAI(
     api_key=openai_api_key,
     model='o1',
-    temperature=0.7,
+    # temperature=0.7,
     streaming=False
     )
 
