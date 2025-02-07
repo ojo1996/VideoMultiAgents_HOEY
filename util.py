@@ -11,9 +11,10 @@ import glob
 import base64
 import portalocker
 from mimetypes import guess_type
+import numpy as np
 
 
-# Function to encode a local image into data URL 
+# Function to encode a local image into data URL
 def local_image_to_data_url(image_path):
     # Guess the MIME type of the image based on the file extension
     mime_type, _ = guess_type(image_path)
@@ -31,7 +32,6 @@ def local_image_to_data_url(image_path):
 @retry(tries=3, delay=3)
 def ask_gpt4_omni(openai_api_key="", prompt_text="", temperature=0.0, image_dir="", vid="", frame_num=18, detail="low", use_selected_images=None):
     model_name = "gpt-4o"
-    # model_name = "gpt-4o-mini"
 
     client = OpenAI(api_key=openai_api_key)
 
@@ -46,10 +46,15 @@ def ask_gpt4_omni(openai_api_key="", prompt_text="", temperature=0.0, image_dir=
                 data_url = local_image_to_data_url(image_path)
                 frames.append({ "type": "image_url", "image_url": { "url": data_url, "detail": detail } })
         else:
-            step = len(frame_path_list) // frame_num
-            start = random.randint(0, int(len(frame_path_list) / frame_num))
-            for i in range(start, len(frame_path_list), step):
-                data_url = local_image_to_data_url(frame_path_list[i])
+            if len(frame_path_list) <= frame_num:
+                selected_paths = frame_path_list
+            else:
+                # uniformly sample frames
+                indices = [int(round(x)) for x in np.linspace(0, len(frame_path_list) - 1, frame_num)]
+                selected_paths = [frame_path_list[i] for i in indices]
+
+            for image_path in selected_paths:
+                data_url = local_image_to_data_url(image_path)
                 frames.append({ "type": "image_url", "image_url": { "url": data_url, "detail": detail } })
 
         response = client.chat.completions.create(
@@ -155,6 +160,12 @@ def create_mas_stage1_prompt(json_data):
 
 
 def create_question_sentence(question_data:dict, shuffle_questions=False):
+    # moma-qa
+    if os.getenv("DATASET") == "momaqa":
+        prompt = "[Question]\n"
+        prompt += "Question: " + question_data["question"]
+        return prompt
+    
     prompt = "[Question and 5 Options to Solve]\n"
     prompt += "Question: " + question_data["question"]
     # Add options
@@ -189,39 +200,55 @@ def create_stage2_agent_prompt(question_data:dict, generated_expert_prompt="", s
     return prompt
 
 
-def create_stage2_organizer_prompt(question_data:dict, shuffle_questions=False):
+def create_stage2_organizer_prompt():
 
-    organizer_prompt = (
-        "[Instructions]\n"
-        "You are the organizer of a discussion. Your task is to analyze the opinions of other Agents and make a final decision.\n"
-        "Your output should be one of the following options: OptionA, OptionB, OptionC, OptionD, OptionE, along with an explanation.\n"
-        "The correct answer is always within these 5 options and is a simple and straightforward choice.\n"
-        "Provide a step-by-step explanation of your reasoning.\n"
-        "You should respect the opinions of other experts. Also, include the opinions of other experts in your explanation.\n\n"
+    if os.getenv("DATASET") == "egoschema" or os.getenv("DATASET") == "nextqa":
+        organizer_prompt = (
+            "[Instructions]\n"
+            "You are the organizer of a discussion. "
+            "Your task is to summarize the opinions of three Agents, determine whether further discussion is necessary, and, if the discussion is already concluded, provide the final decision.\n"
+            "Your output should be one of the following options: OptionA, OptionB, OptionC, OptionD, OptionE, along with an explanation.\n"
+            "The correct answer is always within these 5 options.\n"
+            "Base your decision primarily on a majority vote. If the opinions of the three Agents are divided, initiate a follow-up discussion to reach a consensus.\n\n"
 
-        # "Exclude options that contain unnecessary embellishments, such as subjective adverbs or clauses that cannot be objectively determined, and consider only the remaining options.\n"
-        # "Place importance on clear and concise expression, and avoid choosing options that include unnecessary embellishments\n"
-        # "Avoid choosing options that include adverbs and other unnecessary embellishments (especially those indicating properties or states), and place importance on comprehensive and accurate descriptions of objects and actions in clear sentences.\n\n"
-        "Avoid choosing options that include adverbs and other unnecessary embellishments, especially those indicating properties or states\n"
-        "Place importance on comprehensive and accurate descriptions of objects and actions in sentences.\n\n"
+            "[Output Format]\n"
+            "Your response should be formatted as follows:\n"
+            "- Additional Discussion Needed: [YES/NO]\n"
+            "- Pred: OptionX (If additional discussion is needed, provide the current leading candidate.)\n"
+            "- Explanation: Provide a detailed explanation, including reasons for requiring additional discussion or the reasoning behind the final decision."
+        )
+    elif os.getenv("DATASET") == "momaqa":
+        organizer_prompt = (
+            "[Instructions]\n"
+            "You are the organizer of a discussion. "
+            "Your task is to summarize the opinions of three Agents, determine whether further discussion is necessary, and, if the discussion is already concluded, provide the final answer.\n"
+            "Your output should be a concise and clear answer to the question, along with an explanation.\n"
+            "Base your decision primarily on a majority vote. If the opinions of the three Agents are divided, initiate a follow-up discussion to reach a consensus.\n\n"
 
-        f"{create_question_sentence(question_data, shuffle_questions=False)}\n\n"
-
-        "[Output Format]\n"
-        "Your response should be formatted as follows:\n"
-        "Pred: OptionX\n"
-        "Explanation: Your detailed explanation here.\n\n"
-    )
+            "[Output Format]\n"
+            "Your response should be formatted as follows:\n"
+            "Note: If any part of the output is a number, represent it as a digit (e.g., '1') rather than as a word (e.g., 'one').\n"
+            "- Additional Discussion Needed: [YES/NO]\n"
+            "- Pred: [Your final answer, stated as a single word or phrase (e.g., 'basketball player', 'preparing food')]\n"
+            "- Explanation: Provide a detailed explanation, including reasons for requiring additional discussion or the reasoning behind the final answer."
+        )
 
     return organizer_prompt
 
 
 def set_environment_variables(dataset:str, video_id:str, qa_json_data:dict):
     if dataset == "egoschema": index_name = video_id
-    if dataset == "nextqa"   : index_name = video_id.split("_")[0]
+    elif dataset == "nextqa" : index_name = video_id.split("_")[0]
 
-    if dataset == "egoschema": os.environ["VIDEO_FILE_NAME"] = video_id
-    if dataset == "nextqa"   : os.environ["VIDEO_FILE_NAME"] = map_vid[video_id.split("_")[0]]
+    if dataset == "egoschema":
+        os.environ["VIDEO_FILE_NAME"] = video_id
+    elif dataset == "nextqa":
+        # mapping file for nextqa
+        map_vid = "/root/nas_nextqa/nextqa/map_vid_vidorID.json"
+        if dataset == "nextqa":
+            with open(map_vid, "r") as f:
+                map_vid = json.load(f)
+                os.environ["VIDEO_FILE_NAME"] = map_vid[video_id.split("_")[0]]
 
     os.environ["VIDEO_INDEX"]     = index_name
     os.environ["QA_JSON_STR"]     = json.dumps(qa_json_data)
@@ -229,7 +256,22 @@ def set_environment_variables(dataset:str, video_id:str, qa_json_data:dict):
     print ("{} : {}".format(video_id, index_name))
 
 
-def post_process(response):
+def post_process(message:str):
+
+    if os.getenv("DATASET") == "egoschema" or os.getenv("DATASET") == "nextqa":
+        prediction_num = post_process_5choice(message)
+        if prediction_num == -1:
+            prompt = message + "\n\nPlease retrieve the final answer from the sentence above. Your response should be one of the following options: Option A, Option B, Option C, Option D, Option E."
+            response_data = ask_gpt4_omni(openai_api_key=os.getenv("OPENAI_API_KEY"), prompt_text=prompt)
+            prediction_num = post_process(response_data)
+        return prediction_num
+    elif os.getenv("DATASET") == "momaqa":
+        prompt = message + "\n\nExtract and output only the content that immediately follows \"- Pred:\" on its line. Do not include any additional text or formatting."
+        response_data = ask_gpt4_omni(openai_api_key=os.getenv("OPENAI_API_KEY"), prompt_text=prompt)
+        return response_data
+
+
+def post_process_5choice(response):
     response = response.lower()
     option_patterns = {
         "option a": 0,
@@ -249,41 +291,6 @@ def post_process(response):
         return found_options[0]
     else: # If multiple or no options are found, return -1
         return -1
-
-
-def extract_expert_info_json(data):
-    result = {}
-
-    json_start = data.find('{')
-    json_end = data.rfind('}') + 1
-
-    json_data = data[json_start:json_end]
-
-    if json_start != -1:
-        try:
-            json_extract = json.loads(json_data)
-            for key, value in json_extract.items():
-                if "ExpertName" in key and "Prompt" not in key:
-                    number = re.findall(r'\d+', key)[0]
-                    expert_key = f"ExpertName{number}"
-                    prompt_key = f"ExpertName{number}Prompt"
-                    expert_name = value
-                    prompt_text = json_extract.get(prompt_key, "")
-
-                    result[expert_key] = expert_name.strip().replace('"', "'")
-                    result[prompt_key] = prompt_text.strip().replace('"', "'")
-        except json.JSONDecodeError:
-            print("JSONDecodeError: Failed to extract expert information from the response.")
-
-    return result
-
-
-def extract_expert_info(data):
-    result = extract_expert_info_json(data)
-    if len([k for k in result if "ExpertName" in k]) >= 2 and len([k for k in result if "Prompt" in k]) >= 3:
-        return result
-    else:
-        return None
 
 
 def read_json_file(file_path):
@@ -387,6 +394,24 @@ def save_result(file_path, video_id:str, expert_info:dict, agent_prompts:dict, a
             portalocker.lock(f, portalocker.LOCK_EX)
             json.dump(questions, f, indent=4)
             portalocker.unlock(f)
+
+
+def get_video_summary(summary_cache_json_path:str, vid:str):
+    # Check if the JSON file exists
+    if not summary_cache_json_path or not os.path.exists(summary_cache_json_path):
+        print("file not found {}".format(summary_cache_json_path))
+        return ""
+
+    # Load the JSON file
+    with open(summary_cache_json_path, "r", encoding="utf-8") as f:
+        video_summaries = json.load(f)
+
+    # Check if the vid result is already in the JSON
+    if vid in video_summaries:
+        return video_summaries[vid]
+    else:
+        print(f"Summary for vid '{vid}' not found in JSON.")
+        return ""
 
 
 def create_summary_of_video(openai_api_key="", temperature=0.0, image_dir="", vid="", sampling_interval_sec=3, segment_frames_num=90):

@@ -21,6 +21,12 @@ def retrieve_video_clip_captions() -> list[str]:
     captions_file = os.getenv("CAPTIONS_FILE")
     dataset       = os.getenv("DATASET")
 
+    # Check if the captions file exists
+    if not os.path.exists(captions_file):
+        print(f"Captions file not found: {captions_file}")
+        return []
+
+    # Load the captions data
     with open(captions_file, "r") as f:
         captions_data = json.load(f)
 
@@ -29,7 +35,7 @@ def retrieve_video_clip_captions() -> list[str]:
     previous_caption = None
 
     for i, caption in enumerate(captions):
-        
+
         # if dataset == "egoschema":
         #     # Remove the 'C' marker from the caption
         #     caption = caption.replace("#C ", "")

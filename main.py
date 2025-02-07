@@ -5,7 +5,7 @@ import time
 import random
 import argparse
 from util import select_data_and_mark_as_processing
-from util import unmark_as_processing
+from util import create_summary_of_video
 from util import save_result
 from util import set_environment_variables
 from stage1 import execute_stage1
@@ -32,7 +32,7 @@ QUESTION_FILE_PATH_DICT =     {
 IMAGES_DIR_PATH_DICT =     {
     "egoschema": "/root/nas_Ego4D/egoschema/images",
     "nextqa"   : "/root/nas_nextqa/NExTVideoFrames"
-    }   
+    }
 
 # Number of frames to be used for the analysis
 FRAME_NUM_DICT =    {
@@ -50,13 +50,8 @@ SUMMARY_CACHE_JSON_PATH = {
 VIDEOTREE_RESULTS_PATH_DICT =  {
     "egoschema": "/root/nas_Ego4D/egoschema/llovi_data/egoschema/VideoTree_data/depth_expansion/frames_index.json",
     "nextqa"   : "/path/to/nextqa/frames_index"
-    } 
+    }
 
-# mapping file for nextqa
-map_vid = "/root/nas_nextqa/nextqa/map_vid_vidorID.json"
-if dataset == "nextqa":
-    with open(map_vid, "r") as f:
-        map_vid = json.load(f)
 
 os.environ["DATASET"]                 = dataset
 os.environ["CAPTIONS_FILE"]           = CAPTIONS_FILE_DICT[dataset]
@@ -87,17 +82,13 @@ while True:
         # Set environment variables
         print ("****************************************")
         set_environment_variables(dataset, video_id, json_data)
+        # Create Summary infomation and set it as environment variable
+        summary_info = create_summary_of_video(openai_api_key=os.getenv("OPENAI_API_KEY"), temperature=0.7, image_dir=os.getenv("IMAGES_DIR_PATH"), vid=os.getenv("VIDEO_INDEX"), sampling_interval_sec=1, segment_frames_num=int(os.getenv("FRAME_NUM")))
+        os.environ["SUMMARY_INFO"] = json.dumps(summary_info)
 
         # Execute stage1
         print ("execute stage1")
         expert_info = execute_stage1()
-        
-        # replace newline characters to prevent errors in json serialization
-        expert_info["ExpertName1Prompt"] = expert_info["ExpertName1Prompt"].replace('\n',' ')
-        expert_info["ExpertName2Prompt"] = expert_info["ExpertName2Prompt"].replace('\n',' ')
-        expert_info["ExpertName3Prompt"] = expert_info["ExpertName3Prompt"].replace('\n',' ')
-        
-        print (expert_info)
 
 
         # Execute stage2

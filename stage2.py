@@ -8,16 +8,9 @@ from langgraph.graph import StateGraph, END
 from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain.output_parsers.openai_functions import JsonOutputFunctionsParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.messages import BaseMessage, HumanMessage
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-from langchain_groq import ChatGroq
-from langchain_ollama import ChatOllama
 
-# for llama3
-# import transformers
-# import torch
-# from langchain_huggingface.llms.huggingface_pipeline import HuggingFacePipeline
-# from langchain_huggingface import ChatHuggingFace
 
 from tools.dummy_tool import dummy_tool
 from tools.retrieve_video_clip_captions import retrieve_video_clip_captions
@@ -32,8 +25,10 @@ from util import post_process, ask_gpt4_omni, create_stage2_agent_prompt, create
 
 
 openai_api_key = os.getenv("OPENAI_API_KEY")
+
+# tools = [analyze_video_gpt4o, retrieve_video_clip_captions]
 tools = [analyze_video_gpt4o_with_adaptive_frame_sampling, retrieve_video_clip_captions_with_graph_data]
-# tools = [analyze_video_gpt4o_with_adaptive_frame_sampling, retrieve_video_clip_captions]
+
 #tools = [analyze_video_gpt4o, retrieve_video_clip_captions, analyze_video_based_on_the_checklist]
 # tools = [analyze_video_gpt4o_with_keyword, retrieve_video_clip_captions]
 
@@ -41,36 +36,21 @@ llm = ChatOpenAI(
     api_key=openai_api_key,
     model='gpt-4o',
     temperature=0.0,
-    streaming=False
+    disable_streaming=True
     )
 
 llm_openai = ChatOpenAI(
     api_key=openai_api_key,
     model='gpt-4o',
-    temperature=0.7,
-    streaming=False
+    temperature=0.7, # o1 model only sippors temperature 1.0
+    disable_streaming=True
     )
-
-# groq_api_key = os.getenv("GROQ_API_KEY")
-# llm_groq = ChatGroq(
-#     temperature=0,
-#     model="llama-3.1-70b-versatile",
-#     # model="llama3-groq-70b-8192-tool-use-preview",
-#     # model="llama3-8b-8192",
-#     api_key=groq_api_key
-# )
-
-# llm_ollama = ChatOllama(
-#     model="llama3.1:70b",
-#     temperature=0.0,
-#     streaming=False
-#     )
 
 
 def create_agent(llm, tools: list, system_prompt: str):
     prompt = ChatPromptTemplate.from_messages(
         [
-            ( "system", system_prompt, ),
+            SystemMessage(content=system_prompt),
             MessagesPlaceholder(variable_name="messages"),
             MessagesPlaceholder(variable_name="agent_scratchpad"),
         ]
@@ -123,14 +103,11 @@ def execute_stage2(expert_info):
     }
     prompt = ChatPromptTemplate.from_messages(
         [
-            ("system", system_prompt),
+            SystemMessage(content=system_prompt),
             MessagesPlaceholder(variable_name="messages"),
-            (
-                "system",
-                "Given the conversation above, who should act next?"
-                " Or should we FINISH? Select one of: {options}"
-                " If you want to finish the conversation, type 'FINISH' and Final Answer."
-                ,
+            SystemMessage(
+                content="Given the conversation above, who should act next? Or should we FINISH? Select one of: {options} If you want to finish the conversation, type 'FINISH' and Final Answer.",
+                additional_kwargs={"__openai_role__": "developer"}
             ),
         ]
     ).partial(options=str(options), members=", ".join(members))
@@ -158,10 +135,10 @@ def execute_stage2(expert_info):
     agent2_node = functools.partial(agent_node, agent=agent2, name="agent2")
 
     agent3_prompt = create_stage2_agent_prompt(target_question_data, expert_info["ExpertName3Prompt"], shuffle_questions=False)
-    agent3 = create_agent(llm_openai, [retrieve_video_clip_captions_with_graph_data], system_prompt=agent3_prompt)
+    agent3 = create_agent(llm_openai, tools, system_prompt=agent3_prompt)
     agent3_node = functools.partial(agent_node, agent=agent3, name="agent3")
 
-    organizer_prompt = create_stage2_organizer_prompt(target_question_data, shuffle_questions=False)
+    organizer_prompt = create_stage2_organizer_prompt()
     organizer_agent = create_agent(llm_openai, [dummy_tool], system_prompt=organizer_prompt)
     organizer_node = functools.partial(agent_node, agent=organizer_agent, name="organizer")
 
@@ -208,15 +185,11 @@ def execute_stage2(expert_info):
     print ("****************************************")
     agents_result = graph.invoke(
         {"messages": [HumanMessage(content=input_message, name="system")], "next": "agent1"},
-        {"recursion_limit": 20}
+        {"recursion_limit": 20, "stream": False}
     )
 
-    prediction_num = post_process(agents_result["messages"][-1].content)
-    if prediction_num == -1:
-        prompt = agents_result["messages"][-1].content + "\n\nPlease retrieve the final answer from the sentence above. Your response should be one of the following options: Option A, Option B, Option C, Option D, Option E."
-        response_data = ask_gpt4_omni(openai_api_key=openai_api_key, prompt_text=prompt)
-        prediction_num = post_process(response_data)
-    if prediction_num == -1:
+    prediction_result = post_process(agents_result["messages"][-1].content)
+    if prediction_result == -1:
         print ("***********************************************************")
         print ("Error: The result is -1. So, retry the stage2.")
         print ("***********************************************************")
@@ -228,10 +201,13 @@ def execute_stage2(expert_info):
     print ("*********** Stage2 Result **************")
     print(json.dumps(agents_result_dict, indent=2, ensure_ascii=False))
     print ("****************************************")
-    print(f"Truth: {target_question_data['truth']}, Pred: {prediction_num} (Option{['A', 'B', 'C', 'D', 'E'][prediction_num]})" if 0 <= prediction_num <= 4 else "Error: Invalid result_data value")
+    if os.getenv("DATASET") == "egoschema" or os.getenv("DATASET") == "nextqa":
+        print(f"Truth: {target_question_data['truth']}, Pred: {prediction_result} (Option{['A', 'B', 'C', 'D', 'E'][prediction_result]})" if 0 <= prediction_result <= 4 else "Error: Invalid result_data value")
+    elif os.getenv("DATASET") == "momaqa":
+        print (f"Truth: {target_question_data['truth']}, Pred: {prediction_result}")
     print ("****************************************")
 
-    return prediction_num, agents_result_dict, agent_prompts
+    return prediction_result, agents_result_dict, agent_prompts
 
 
 if __name__ == "__main__":
