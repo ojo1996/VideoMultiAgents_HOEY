@@ -14,7 +14,7 @@ from mimetypes import guess_type
 import numpy as np
 
 
-# Function to encode a local image into data URL 
+# Function to encode a local image into data URL
 def local_image_to_data_url(image_path):
     # Guess the MIME type of the image based on the file extension
     mime_type, _ = guess_type(image_path)
@@ -49,7 +49,7 @@ def ask_gpt4_omni(openai_api_key="", prompt_text="", temperature=0.0, image_dir=
             if len(frame_path_list) <= frame_num:
                 selected_paths = frame_path_list
             else:
-                # 均等間隔でサンプリングするためのインデックスを算出
+                # uniformly sample frames
                 indices = [int(round(x)) for x in np.linspace(0, len(frame_path_list) - 1, frame_num)]
                 selected_paths = [frame_path_list[i] for i in indices]
 

@@ -47,7 +47,7 @@ llm_openai = ChatOpenAI(
 def create_agent(llm, tools: list, system_prompt: str):
     prompt = ChatPromptTemplate.from_messages(
         [
-            SystemMessage(content=system_prompt, additional_kwargs={"__openai_role__": "developer"}),
+            SystemMessage(content=system_prompt),
             MessagesPlaceholder(variable_name="messages"),
             MessagesPlaceholder(variable_name="agent_scratchpad"),
         ]
@@ -100,7 +100,7 @@ def execute_stage2(expert_info):
     }
     prompt = ChatPromptTemplate.from_messages(
         [
-            SystemMessage(content=system_prompt, additional_kwargs={"__openai_role__": "developer"}),
+            SystemMessage(content=system_prompt),
             MessagesPlaceholder(variable_name="messages"),
             SystemMessage(
                 content="Given the conversation above, who should act next? Or should we FINISH? Select one of: {options} If you want to finish the conversation, type 'FINISH' and Final Answer.",
