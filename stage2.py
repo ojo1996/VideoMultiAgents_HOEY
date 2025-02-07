@@ -8,7 +8,7 @@ from langgraph.graph import StateGraph, END
 from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain.output_parsers.openai_functions import JsonOutputFunctionsParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.messages import BaseMessage, HumanMessage
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from langchain_groq import ChatGroq
 from langchain_ollama import ChatOllama
@@ -38,15 +38,15 @@ tools = [analyze_video_gpt4o, retrieve_video_clip_captions]
 
 llm = ChatOpenAI(
     api_key=openai_api_key,
-    model='gpt-4o',
-    temperature=0.0,
+    model='o1',
+    temperature=1.0,
     streaming=False
     )
 
 llm_openai = ChatOpenAI(
     api_key=openai_api_key,
     model='o1',
-    # temperature=0.7,
+    temperature=1.0, # o1 model only sippors temperature 1.0
     streaming=False
     )
 
@@ -69,7 +69,7 @@ llm_openai = ChatOpenAI(
 def create_agent(llm, tools: list, system_prompt: str):
     prompt = ChatPromptTemplate.from_messages(
         [
-            ( "system", system_prompt, ),
+            SystemMessage(content=system_prompt, additional_kwargs={"__openai_role__": "developer"}),
             MessagesPlaceholder(variable_name="messages"),
             MessagesPlaceholder(variable_name="agent_scratchpad"),
         ]
@@ -122,14 +122,11 @@ def execute_stage2(expert_info):
     }
     prompt = ChatPromptTemplate.from_messages(
         [
-            ("system", system_prompt),
+            SystemMessage(content=system_prompt, additional_kwargs={"__openai_role__": "developer"}),
             MessagesPlaceholder(variable_name="messages"),
-            (
-                "system",
-                "Given the conversation above, who should act next?"
-                " Or should we FINISH? Select one of: {options}"
-                " If you want to finish the conversation, type 'FINISH' and Final Answer."
-                ,
+            SystemMessage(
+                content="Given the conversation above, who should act next? Or should we FINISH? Select one of: {options} If you want to finish the conversation, type 'FINISH' and Final Answer.",
+                additional_kwargs={"__openai_role__": "developer"}
             ),
         ]
     ).partial(options=str(options), members=", ".join(members))
