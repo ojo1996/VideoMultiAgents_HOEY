@@ -16,50 +16,32 @@ parser.add_argument('--dataset', type=str, help="Example: egoschema, nextqa, etc
 args = parser.parse_args()
 dataset = args.dataset
 
-# Path to the file containing the captions data
-CAPTIONS_FILE_DICT =     {
-    "egoschema": "/root/nas_Ego4D/egoschema/llovi_data/egoschema/lavila_fullset.json",
-    "nextqa"   : "/root/nas_nextqa/nextqa/llava1.5_fps1.json"
-    }   
+os.environ["DATASET"] = dataset
 
-# Path to the file containing the questions data
-QUESTION_FILE_PATH_DICT =     {
-    "egoschema": "/root/nas_Ego4D/egoschema/llovi_data/egoschema/fullset_anno.json",
-    "nextqa"   : "/root/nas_nextqa/nextqa/nextqa.json"
-    }   
+if dataset == "egoschema":
+    os.environ["QUESTION_FILE_PATH"]      = "/root/VideoMultiAgents/egoschema_fullset_anno.json"
+    os.environ["CAPTIONS_FILE"]           = "/root/VideoMultiAgents/egoschema_lavila_captions.json"
+    os.environ["SUMMARY_CACHE_JSON_PATH"] = "/root/VideoMultiAgents/egoschema_summary_cache.json"
+    os.environ["VIDEOTREE_RESULTS_PATH"]  = "/root/VideoMultiAgents/egoschema_videotree_result.json"
+    os.environ["IMAGES_DIR_PATH"]         = "/root/nas_Ego4D/egoschema/images"
+    os.environ["FRAME_NUM"]               = "90"
+elif dataset == "nextqa":
+    os.environ["QUESTION_FILE_PATH"]      = "/root/VideoMultiAgents/nextqa_test_anno.json"
+    os.environ["CAPTIONS_FILE"]           = "/root/VideoMultiAgents/nextqa_llava1.5_captions.json"
+    os.environ["SUMMARY_CACHE_JSON_PATH"] = "/root/VideoMultiAgents/nextqa_summary_cache.json"
+    os.environ["VIDEOTREE_RESULTS_PATH"]  = "/path/to/nextqa/frames_index"
+    os.environ["IMAGES_DIR_PATH"]         = "/root/nas_nextqa/NExTVideoFrames"
+    os.environ["FRAME_NUM"]               = "90"
+elif dataset == "momaqa":
+    os.environ["QUESTION_FILE_PATH"]      = "/root/VideoMultiAgents/momaqa_test_anno.json"
+    os.environ["CAPTIONS_FILE"]           = "/root/VideoMultiAgents/momaqa_captions.json"
+    os.environ["SUMMARY_CACHE_JSON_PATH"] = "/root/VideoMultiAgents/momaqa_summary_cache.json"
+    os.environ["VIDEOTREE_RESULTS_PATH"]  = "/root/VideoMultiAgents/momaqa_videotree_result.json"
+    os.environ["IMAGES_DIR_PATH"]         = "/root/nas_momaqa/images"
+    os.environ["FRAME_NUM"]               = "90"
+else:
+    raise ValueError(f"Unknown dataset: {dataset}")
 
-# Path to the directory containing the images  
-IMAGES_DIR_PATH_DICT =     {
-    "egoschema": "/root/nas_Ego4D/egoschema/images",
-    "nextqa"   : "/root/nas_nextqa/NExTVideoFrames"
-    }
-
-# Number of frames to be used for the analysis
-FRAME_NUM_DICT =    {
-    "egoschema": 90,
-    "nextqa"   : 32
-    }
-
-# Summary cache path
-SUMMARY_CACHE_JSON_PATH = {
-    "egoschema": "/root/VideoMultiAgents/summary_cache_egoschema.json",
-    "nextqa"   : "/root/VideoMultiAgents/summary_cache_nextqa.json"
-}
-
-# VideoTree extracted frames indices path
-VIDEOTREE_RESULTS_PATH_DICT =  {
-    "egoschema": "/root/nas_Ego4D/egoschema/llovi_data/egoschema/VideoTree_data/depth_expansion/frames_index.json",
-    "nextqa"   : "/path/to/nextqa/frames_index"
-    }
-
-
-os.environ["DATASET"]                 = dataset
-os.environ["CAPTIONS_FILE"]           = CAPTIONS_FILE_DICT[dataset]
-os.environ["QUESTION_FILE_PATH"]      = QUESTION_FILE_PATH_DICT[dataset]
-os.environ["IMAGES_DIR_PATH"]         = IMAGES_DIR_PATH_DICT[dataset]
-os.environ["FRAME_NUM"]               = str(FRAME_NUM_DICT[dataset])
-os.environ["SUMMARY_CACHE_JSON_PATH"] = SUMMARY_CACHE_JSON_PATH[dataset]
-os.environ["VIDEOTREE_RESULTS_PATH"]  = VIDEOTREE_RESULTS_PATH_DICT[dataset]
 
 # Sleep for a random duration (0–10 seconds) to avoid simultaneous access to the JSON file by multiple containers
 sleep_time = random.uniform(0, 10)
