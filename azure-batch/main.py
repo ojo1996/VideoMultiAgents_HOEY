@@ -17,23 +17,23 @@ for var in env_vars:
 # Set the environment variables
 os.environ["IMAGES_DIR_PATH"] = "/root/VideoMultiAgents/images"
 if os.getenv("DATASET") == "egoschema":
-    os.environ["CAPTIONS_FILE"] = "/root/VideoMultiAgents/graph_captions_1500_2500.json"
-    os.environ["FRAME_NUM"] = str(90)
+    os.environ["CAPTIONS_FILE"]           = "/root/VideoMultiAgents/graph_captions_1500_2500.json"
+    os.environ["VIDEOTREE_RESULTS_PATH"]  = "/root/VideoMultiAgents/egoschema_videotree_result.json"
     os.environ["SUMMARY_CACHE_JSON_PATH"] = "/root/VideoMultiAgents/egoschema_summary_cache.json"
-    os.environ["VIDEOTREE_RESULTS_PATH"] = "/root/VideoMultiAgents/egoschema_videotree_result.json"
-    os.environ["SUMMARY_INFO"] = json.dumps(get_video_summary(os.getenv("SUMMARY_CACHE_JSON_PATH"), os.getenv("VIDEO_FILE_NAME")))
+    os.environ["SUMMARY_INFO"]            = json.dumps(get_video_summary(os.getenv("SUMMARY_CACHE_JSON_PATH"), os.getenv("VIDEO_FILE_NAME")))
+    os.environ["FRAME_NUM"]               = str(90)
 elif os.getenv("DATASET") == "nextqa":
-    os.environ["CAPTIONS_FILE"] = "/root/VideoMultiAgents/nextqa_llava1.5_captions.json"
-    os.environ["FRAME_NUM"] = str(90)
+    os.environ["CAPTIONS_FILE"]           = "/root/VideoMultiAgents/nextqa_llava1.5_captions.json"
+    os.environ["VIDEOTREE_RESULTS_PATH"]  = "/root/VideoMultiAgents/nextqa_videotree_result.json"
     os.environ["SUMMARY_CACHE_JSON_PATH"] = "/root/VideoMultiAgents/nextqa_summary_cache.json"
-    os.environ["VIDEOTREE_RESULTS_PATH"] = "/root/VideoMultiAgents/nextqa_videotree_result.json"
-    os.environ["SUMMARY_INFO"] = json.dumps(get_video_summary(os.getenv("SUMMARY_CACHE_JSON_PATH"), os.getenv("CONTAINER_NAME")))
+    os.environ["SUMMARY_INFO"]            = json.dumps(get_video_summary(os.getenv("SUMMARY_CACHE_JSON_PATH"), os.getenv("CONTAINER_NAME")))
+    os.environ["FRAME_NUM"]               = str(90)
 elif os.getenv("DATASET") == "momaqa":
-    os.environ["CAPTIONS_FILE"] = "/root/VideoMultiAgents/momaqa_captions.json"
-    os.environ["FRAME_NUM"] = str(90) # All frames
+    os.environ["CAPTIONS_FILE"]           = "/root/VideoMultiAgents/momaqa_captions.json"
+    os.environ["VIDEOTREE_RESULTS_PATH"]  = "/root/VideoMultiAgents/momaqa_videotree_result.json"
     os.environ["SUMMARY_CACHE_JSON_PATH"] = "/root/VideoMultiAgents/momaqa_summary_cache.json"
-    os.environ["VIDEOTREE_RESULTS_PATH"] = "/root/VideoMultiAgents/momaqa_videotree_result.json"
-    os.environ["SUMMARY_INFO"] = json.dumps(get_video_summary(os.getenv("SUMMARY_CACHE_JSON_PATH"), os.getenv("CONTAINER_NAME")))
+    os.environ["SUMMARY_INFO"]            = json.dumps(get_video_summary(os.getenv("SUMMARY_CACHE_JSON_PATH"), os.getenv("CONTAINER_NAME")))
+    os.environ["FRAME_NUM"]               = str(90)
 
 # Download images and othere necessary files
 download_blob_data(os.getenv("BLOB_CONNECTION_STRING"), os.getenv("CONTAINER_NAME"), os.getenv("IMAGES_DIR_PATH"))
