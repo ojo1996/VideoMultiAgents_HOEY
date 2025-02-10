@@ -7,8 +7,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from util import ask_gpt4_omni
 
 
-openai_api_key = os.getenv("OPENAI_API_KEY")
-
 def remove_bbox(data):
     if isinstance(data, dict):
         new_data = {}
@@ -24,8 +22,8 @@ def remove_bbox(data):
 @tool
 def analyze_video_using_graph_data(question:str) -> str:
     """
-    Analyze Video using Graph Data tool. 
-    
+    Analyze Video using Graph Data tool.
+
     This tool is used to analyze the video using graph data. You can ask a question related to the Video Clip and the tool will analyze the graph data and provide the answer.
 
     Parameters:
@@ -39,7 +37,7 @@ def analyze_video_using_graph_data(question:str) -> str:
 
     graph_data_path  = os.getenv("GRAPH_DATA_PATH")
     graph_data_index = os.getenv("GRAPH_DATA_INDEX")
-    
+
     if os.path.exists(graph_data_path) == False:
         print ("Error: The graph data file does not exist.")
         return "I am sorry, I could not find the graph data file."
@@ -59,12 +57,14 @@ def analyze_video_using_graph_data(question:str) -> str:
         prompt += f"Question : {question}\n"
         prompt += "Note : When providing answers, please generate responses based on a natural language understanding. Avoid referencing specific data structures, IDs, technical tags, or graph data, and instead use general language to explain concepts. Aim to offer explanations that can be understood without requiring background knowledge of the technical details."
         # print ("Prompt: ", prompt)
-        
+
         result = ask_gpt4_omni(
-            openai_api_key = openai_api_key,
+            openai_api_key = os.getenv("OPENAI_API_KEY"),
             prompt_text=prompt
         )
-        
+
+        print ("Graph Data tool Result: ", result)
+
         return result
 
 
