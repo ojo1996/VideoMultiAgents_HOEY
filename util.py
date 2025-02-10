@@ -239,16 +239,16 @@ def create_stage2_organizer_prompt():
 def set_environment_variables(dataset:str, video_id:str, qa_json_data:dict):
     if dataset == "egoschema": index_name = video_id
     elif dataset == "nextqa" : index_name = video_id.split("_")[0]
+    elif dataset == "momaqa" : index_name = qa_json_data["video_id"]
 
     if dataset == "egoschema":
         os.environ["VIDEO_FILE_NAME"] = video_id
     elif dataset == "nextqa":
-        # mapping file for nextqa
-        map_vid = "/root/nas_nextqa/nextqa/map_vid_vidorID.json"
-        if dataset == "nextqa":
-            with open(map_vid, "r") as f:
-                map_vid = json.load(f)
-                os.environ["VIDEO_FILE_NAME"] = map_vid[video_id.split("_")[0]]
+        os.environ["VIDEO_FILE_NAME"] = qa_json_data["map_vid_vidorid"].replace("/", "-")
+    elif dataset == "momaqa":
+        os.environ["VIDEO_FILE_NAME"] = qa_json_data["video_id"]
+
+    os.environ["SUMMARY_INFO"] = json.dumps(get_video_summary(os.getenv("SUMMARY_CACHE_JSON_PATH"), os.getenv("VIDEO_FILE_NAME")))
 
     os.environ["VIDEO_INDEX"]     = index_name
     os.environ["QA_JSON_STR"]     = json.dumps(qa_json_data)

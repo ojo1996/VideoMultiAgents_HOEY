@@ -5,7 +5,6 @@ import time
 import random
 import argparse
 from util import select_data_and_mark_as_processing
-from util import create_summary_of_video
 from util import save_result
 from util import set_environment_variables
 from stage1 import execute_stage1
@@ -37,6 +36,8 @@ elif dataset == "momaqa":
     os.environ["CAPTIONS_FILE"]           = "/root/VideoMultiAgents/momaqa_captions.json"
     os.environ["SUMMARY_CACHE_JSON_PATH"] = "/root/VideoMultiAgents/momaqa_summary_cache.json"
     os.environ["VIDEOTREE_RESULTS_PATH"]  = "/root/VideoMultiAgents/momaqa_videotree_result.json"
+    os.environ["GRAPH_DATA_PATH"]         = "/root/VideoMultiAgents/momaqa_graph_data.json"
+    os.environ["GRAPH_DATA_INDEX"]        = os.getenv("VIDEO_FILE_NAME")
     os.environ["IMAGES_DIR_PATH"]         = "/root/nas_momaqa/images"
     os.environ["FRAME_NUM"]               = "90"
 else:
@@ -64,9 +65,6 @@ while True:
         # Set environment variables
         print ("****************************************")
         set_environment_variables(dataset, video_id, json_data)
-        # Create Summary infomation and set it as environment variable
-        summary_info = create_summary_of_video(openai_api_key=os.getenv("OPENAI_API_KEY"), temperature=0.7, image_dir=os.getenv("IMAGES_DIR_PATH"), vid=os.getenv("VIDEO_INDEX"), sampling_interval_sec=1, segment_frames_num=int(os.getenv("FRAME_NUM")))
-        os.environ["SUMMARY_INFO"] = json.dumps(summary_info)
 
         # Execute stage1
         print ("execute stage1")
