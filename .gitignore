@@ -1,6 +1,9 @@
 /dataset/**
 /data/**
 /images/**
+/images_egoschema/**
+/images_nextqa/**
+/images_momaqa/**
 
 /vlap/lightning_logs/**
 
@@ -8,3 +11,4 @@
 **.json
 **.ckpt
 **.pth
+**.pyc
