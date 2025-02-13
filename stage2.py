@@ -30,6 +30,7 @@ openai_api_key = os.getenv("OPENAI_API_KEY")
 
 # tools = [analyze_video_gpt4o, retrieve_video_clip_captions]
 tools = [analyze_video_gpt4o_with_videotree_frame_sampling, analyze_video_using_graph_data, retrieve_video_clip_captions]
+# tools = [analyze_video_gpt4o, analyze_video_using_graph_data, retrieve_video_clip_captions]
 
 #tools = [analyze_video_gpt4o, retrieve_video_clip_captions, analyze_video_based_on_the_checklist]
 # tools = [analyze_video_gpt4o_with_keyword, retrieve_video_clip_captions]
