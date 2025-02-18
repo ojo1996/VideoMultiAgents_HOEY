@@ -28,7 +28,10 @@ def analyze_video_gpt4o_with_videotree_frame_sampling(gpt_prompt:str) -> str:
     openai_api_key = os.getenv("OPENAI_API_KEY")
     image_dir = os.getenv("IMAGES_DIR_PATH") + "/" + video_filename
 
-    with open(os.getenv("VIDEOTREE_RESULTS_PATH"), 'r') as f:
+    videotree_path = os.getenv("VIDEOTREE_RESULTS_PATH")
+    print("**************** VideoTree Path****************")
+    print(videotree_path)
+    with open(videotree_path, 'r') as f:
         videotree_result = json.load(f)
 
     frame_indices = videotree_result[question_id]["sorted_values"]
