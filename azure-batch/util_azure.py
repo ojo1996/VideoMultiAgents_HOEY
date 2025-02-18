@@ -15,12 +15,12 @@ def download_blob_data(starage_account_connection_string:str, video_file_name:st
     """
 
     # Initialize BlobServiceClient
-    container_name = video_file_name.replace("-", "/")
+    
     blob_service_client = BlobServiceClient.from_connection_string(starage_account_connection_string)
-    container_client = blob_service_client.get_container_client(container_name)
+    container_client = blob_service_client.get_container_client(video_file_name)
 
     # Create the local download directory if it does not exist
-    local_download_path = os.path.join(local_download_path, container_name)
+    local_download_path = os.path.join(local_download_path, video_file_name)
     if not os.path.exists(local_download_path):
         os.makedirs(local_download_path)
 
