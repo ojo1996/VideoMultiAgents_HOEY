@@ -9,8 +9,8 @@ from langchain.agents import create_openai_tools_agent, AgentExecutor
 # Import required tools for video analysis
 from tools.retrieve_video_clip_captions import retrieve_video_clip_captions
 from tools.analyze_video_gpt4o import analyze_video_gpt4o
-from tools.analyze_video_using_graph_data import analyze_video_using_graph_data
-
+from tools.retrieve_video_clip_captions_with_graph_data import retrieve_video_clip_captions_with_graph_data
+from tools.analyze_video_gpt4o_with_videotree_frame_sampling import analyze_video_gpt4o_with_videotree_frame_sampling
 # Import utility functions (e.g., for post-processing and question sentence generation)
 from util import post_process, create_question_sentence
 
@@ -19,6 +19,9 @@ openai_api_key = os.getenv("OPENAI_API_KEY")
 
 # Define the list of tools for video analysis
 tools = [analyze_video_gpt4o]
+# tools = [analyze_video_gpt4o_with_videotree_frame_sampling]
+# tools = [retrieve_video_clip_captions]
+# tools = [retrieve_video_clip_captions_with_graph_data]
 
 # Instantiate the LLM with appropriate configurations
 llm_openai = ChatOpenAI(

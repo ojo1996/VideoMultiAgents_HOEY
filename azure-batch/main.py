@@ -8,7 +8,7 @@ from util_azure import download_blob_data, save_experiment_data
 # sys.path.append(os.path.abspath(".."))
 from stage1 import execute_stage1
 from stage2 import execute_video_question_answering
-from util import get_video_summary
+# from util import get_video_summary
 
 
 print("Starting the main script...")
@@ -28,13 +28,13 @@ if os.getenv("DATASET") == "egoschema":
     os.environ["CAPTIONS_FILE"]           = "/root/VideoMultiAgents/egoschema_graph_captions.json"
     os.environ["VIDEOTREE_RESULTS_PATH"]  = "/root/VideoMultiAgents/egoschema_videotree_result.json"
     os.environ["SUMMARY_CACHE_JSON_PATH"] = "/root/VideoMultiAgents/egoschema_summary_cache.json"
-    os.environ["SUMMARY_INFO"]            = json.dumps(get_video_summary(os.getenv("SUMMARY_CACHE_JSON_PATH"), os.getenv("VIDEO_FILE_NAME")))
+    # os.environ["SUMMARY_INFO"]            = json.dumps(get_video_summary(os.getenv("SUMMARY_CACHE_JSON_PATH"), os.getenv("VIDEO_FILE_NAME")))
     os.environ["FRAME_NUM"]               = str(90)
 elif os.getenv("DATASET") == "nextqa":
     os.environ["CAPTIONS_FILE"]           = "/root/VideoMultiAgents/nextqa_captions_gpt4o.json"
     os.environ["VIDEOTREE_RESULTS_PATH"]  = "/root/VideoMultiAgents/nextqa_videotree_result.json"
     os.environ["SUMMARY_CACHE_JSON_PATH"] = "/root/VideoMultiAgents/nextqa_summary_cache.json"
-    os.environ["SUMMARY_INFO"]            = json.dumps(get_video_summary(os.getenv("SUMMARY_CACHE_JSON_PATH"), os.getenv("VIDEO_FILE_NAME")))
+    # os.environ["SUMMARY_INFO"]            = json.dumps(get_video_summary(os.getenv("SUMMARY_CACHE_JSON_PATH"), os.getenv("VIDEO_FILE_NAME")))
     os.environ["FRAME_NUM"]               = str(32)
 elif os.getenv("DATASET") == "momaqa":
     os.environ["CAPTIONS_FILE"]           = "/root/VideoMultiAgents/momaqa_captions.json"
@@ -42,7 +42,7 @@ elif os.getenv("DATASET") == "momaqa":
     os.environ["SUMMARY_CACHE_JSON_PATH"] = "/root/VideoMultiAgents/momaqa_summary_cache.json"
     os.environ["GRAPH_DATA_PATH"]         = "/root/VideoMultiAgents/momaqa_graph_data.json"
     os.environ["GRAPH_DATA_INDEX"]        = os.getenv("VIDEO_FILE_NAME")
-    os.environ["SUMMARY_INFO"]            = json.dumps(get_video_summary(os.getenv("SUMMARY_CACHE_JSON_PATH"), os.getenv("VIDEO_FILE_NAME")))
+    # os.environ["SUMMARY_INFO"]            = json.dumps(get_video_summary(os.getenv("SUMMARY_CACHE_JSON_PATH"), os.getenv("VIDEO_FILE_NAME")))
     os.environ["FRAME_NUM"]               = str(90)
 
 print("Downloaded necessary files .")
