@@ -1,3 +1,5 @@
+print("Starting the main script........")
+
 import os
 import sys
 import json
