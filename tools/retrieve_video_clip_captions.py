@@ -57,6 +57,8 @@ def retrieve_video_clip_captions() -> list[str]:
     # print("Retrieved video clip captions.")
     # print(result)
 
+    print("********************** Retrieved video clip captions.*************************")
+    print(result)
     return result
 
 

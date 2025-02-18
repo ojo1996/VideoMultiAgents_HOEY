@@ -18,8 +18,8 @@ from util import post_process, create_question_sentence
 openai_api_key = os.getenv("OPENAI_API_KEY")
 
 # Define the list of tools for video analysis
-tools = [analyze_video_gpt4o]
-# tools = [analyze_video_gpt4o_with_videotree_frame_sampling]
+# tools = [analyze_video_gpt4o]
+tools = [analyze_video_gpt4o_with_videotree_frame_sampling]
 # tools = [retrieve_video_clip_captions]
 # tools = [retrieve_video_clip_captions_with_graph_data]
 

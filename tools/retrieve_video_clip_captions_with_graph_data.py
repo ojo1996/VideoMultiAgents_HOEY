@@ -35,7 +35,8 @@ def retrieve_video_clip_captions_with_graph_data() -> list[str]:
         timestamp = f'{start//3600:02}:{(start%3600)//60:02}:{start%60:02}-{end//3600:02}:{(end%3600)//60:02}:{end%60:02}'
         timestamped_caption = f"{timestamp}: {enriched_caption}"
         timestamped_captions.append(timestamped_caption)
-
+    print("********************** Retrieved video clip graph captions.*************************")
+    print(timestamped_captions)
     return timestamped_captions
 
 

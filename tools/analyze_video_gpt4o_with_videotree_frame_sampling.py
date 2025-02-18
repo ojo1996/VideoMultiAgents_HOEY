@@ -34,9 +34,14 @@ def analyze_video_gpt4o_with_videotree_frame_sampling(gpt_prompt:str) -> str:
     frame_indices = videotree_result[question_id]["sorted_values"]
     frame_indices = list(dict.fromkeys(frame_indices))
     image_paths = sorted([os.path.join(image_dir, f) for f in os.listdir(image_dir)])
+    print("**************** VideoTree Image Paths****************")
+    print(image_paths)
     selected_frames = [image_paths[idx] for idx in frame_indices]  
+    print("**************** VideoTree Selected Frames****************") 
+    print(selected_frames)
     
-    # print("Selected frames: ", selected_frames)
+    print("**************** VideoTree Sampled Frames Indices****************")
+    print(frame_indices)
 
     print ("Called the tool of analyze_video_gpt4o_with_videotree_frame_sampling.")
 
