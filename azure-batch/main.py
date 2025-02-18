@@ -8,8 +8,8 @@ from util_azure import download_blob_data, save_experiment_data
 # sys.path.append(os.path.abspath(".."))
 from stage1 import execute_stage1
 from stage2 import execute_stage2
-from stage2_with_single_agent import execute_video_question_answering
-from util import get_video_summary
+from .stage2_with_single_agent import execute_video_question_answering
+# from util import get_video_summary
 
 
 print("Starting the main script...")
