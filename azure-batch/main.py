@@ -9,11 +9,17 @@ from stage2 import execute_stage2
 from execute_video_question_answering import execute_video_question_answering
 from util import get_video_summary
 
+
+print("Starting the main script...")
+
 # Check the environment variables
 env_vars = [ "BLOB_CONNECTION_STRING", "COSMOS_CONNECTION_STRING", "EXPERIMENT_ID", "DATASET", "OPENAI_API_KEY", "QUESTION_ID", "VIDEO_FILE_NAME", "QA_JSON_STR" ]
 for var in env_vars:
     value = os.getenv(var, "Not Set")
     print(f"{var}: {value}")
+
+
+print("Environment variables checked.")
 
 # Set the environment variables
 os.environ["IMAGES_DIR_PATH"] = "/root/VideoMultiAgents/images"
@@ -37,6 +43,8 @@ elif os.getenv("DATASET") == "momaqa":
     os.environ["GRAPH_DATA_INDEX"]        = os.getenv("VIDEO_FILE_NAME")
     os.environ["SUMMARY_INFO"]            = json.dumps(get_video_summary(os.getenv("SUMMARY_CACHE_JSON_PATH"), os.getenv("VIDEO_FILE_NAME")))
     os.environ["FRAME_NUM"]               = str(90)
+
+print("Downloaded necessary files .")
 
 # Download images and othere necessary files
 download_blob_data(os.getenv("BLOB_CONNECTION_STRING"), os.getenv("VIDEO_FILE_NAME"), os.getenv("IMAGES_DIR_PATH"))
