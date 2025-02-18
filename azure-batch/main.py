@@ -7,8 +7,7 @@ import json
 from util_azure import download_blob_data, save_experiment_data
 # sys.path.append(os.path.abspath(".."))
 from stage1 import execute_stage1
-from stage2 import execute_stage2
-from .stage2_with_single_agent import execute_video_question_answering
+from stage2 import execute_video_question_answering
 # from util import get_video_summary
 
 
@@ -51,19 +50,6 @@ print("Downloaded necessary files .")
 # Download images and othere necessary files
 download_blob_data(os.getenv("BLOB_CONNECTION_STRING"), os.getenv("VIDEO_FILE_NAME"), os.getenv("IMAGES_DIR_PATH"))
 
-# # Execute stage1
-# print ("execute stage1")
-# expert_info = execute_stage1()
-
-# # replace newline characters to prevent errors in json serialization
-# expert_info["ExpertName1Prompt"] = expert_info["ExpertName1Prompt"].replace('\n',' ')
-# expert_info["ExpertName2Prompt"] = expert_info["ExpertName2Prompt"].replace('\n',' ')
-# expert_info["ExpertName3Prompt"] = expert_info["ExpertName3Prompt"].replace('\n',' ')
-
-# # Execute stage2
-# print ("execute stage2")
-# result, agent_response, agent_prompts = execute_stage2(expert_info)
-# print("result: ", result)
 
 # Execute Single Agent Video Question Answering
 print ("Execute Single Agent Video Question Answering")
