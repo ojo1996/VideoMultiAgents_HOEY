@@ -11,6 +11,7 @@ from tools.retrieve_video_clip_captions import retrieve_video_clip_captions
 from tools.analyze_video_gpt4o import analyze_video_gpt4o
 from tools.retrieve_video_clip_captions_with_graph_data import retrieve_video_clip_captions_with_graph_data
 from tools.analyze_video_gpt4o_with_videotree_frame_sampling import analyze_video_gpt4o_with_videotree_frame_sampling
+from tools.retrieve_video_scene_graphs_and_enriched_captions import retrieve_video_scene_graphs_and_enriched_captions
 # Import utility functions (e.g., for post-processing and question sentence generation)
 from util import post_process, create_question_sentence
 

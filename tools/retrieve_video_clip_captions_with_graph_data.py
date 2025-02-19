@@ -5,36 +5,44 @@ from langchain.agents import tool
 
 
 @tool
-def retrieve_video_scene_graphs_and_enriched_captions() -> list[dict]:
+def retrieve_video_clip_captions_with_graph_data() -> list[str]:
     """
-    Scene graph and enriched captions data tool.
+    Image captioning tool.
 
-    Retrieve the scene graphs information and enriched captions of the specified video clip. Each scene graph and enriched caption is generated for distinct small segments for notable changes within the video, helping in recognizing fine-grained changes and temporal flow within the video.
+    Retrieve the captions of the specified video clip. Each caption is generated for distinct small segments for notable changes within the video, helping in recognizing fine-grained changes and flow within the video. The captions include markers 'C' representing the person wearing the camera.
 
     Returns:
-    list[dict]: A list of chunked scene graphs and enriched captions for the video.
+    list[str]: A list of captions for the video.
     """
 
-    print("Called the Scene graph and enriched captions data tool.")
+    print("Called the Image captioning tool.")
 
     video_filename   = os.getenv("VIDEO_FILE_NAME") 
     graph_data_file = os.getenv("GRAPH_DATA_PATH")
+    dataset       = os.getenv("DATASET")
 
     with open(graph_data_file,"r") as f:
-        graph_data = json.load(f)
+        captions_data = json.load(f)
         
-    chunked_graphs = graph_data[video_filename]  
+    caption = captions_data[video_filename]  
 
-    for i in chunked_graphs:
-        del i["original_captions"]
-        del i["yolo_detections"]
-    print("********************** Retrieved video clip graph data.*************************")
-    print(chunked_graphs)
-    return chunked_graphs
+    timestamped_captions = []
+
+    for i in caption:
+        start = i["time_start"]
+        end = i["time_end"]
+        enriched_caption = i["enriched_caption"]
+        timestamp = f'{start//3600:02}:{(start%3600)//60:02}:{start%60:02}-{end//3600:02}:{(end%3600)//60:02}:{end%60:02}'
+        timestamped_caption = f"{timestamp}: {enriched_caption}"
+        timestamped_captions.append(timestamped_caption)
+    print("********************** Retrieved video clip graph captions.*************************")
+    print(timestamped_captions)
+    return timestamped_captions
+
 
 if __name__ == "__main__":
 
-    data = retrieve_video_scene_graphs_and_enriched_captions()
-    for graph in data:
-        print (graph)
+    data = retrieve_video_clip_captions_with_graph_data()
+    for caption in data:
+        print (caption)
     print ("length of data: ", len(data))
