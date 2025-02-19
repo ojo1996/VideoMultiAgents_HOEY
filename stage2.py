@@ -23,7 +23,8 @@ openai_api_key = os.getenv("OPENAI_API_KEY")
 # tools = [analyze_video_gpt4o_with_videotree_frame_sampling]
 # tools = [retrieve_video_clip_captions]
 # tools = [retrieve_video_clip_captions_with_graph_data]
-tools = [retrieve_video_scene_graphs_and_enriched_captions]
+# tools = [retrieve_video_scene_graphs_and_enriched_captions]
+tools = [analyze_video_gpt4o_with_videotree_frame_sampling, retrieve_video_clip_captions]
 
 # Instantiate the LLM with appropriate configurations
 llm_openai = ChatOpenAI(
@@ -63,6 +64,7 @@ def execute_video_question_answering():
         "Your task is VideoQuestionAnswering. You must analyze the video using available tools and choose "
         "the most plausible answer among the five options provided. Think step by step and eventually respond "
         "with 'FINISH' followed by your final answer."
+        "Note: You MUST use all the tools provided to you for the analysis."
     )
 
     # Generate the question sentence using the provided utility (do not include this in the system prompt)
