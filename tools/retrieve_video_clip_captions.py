@@ -31,6 +31,10 @@ def retrieve_video_clip_captions() -> list[str]:
         captions_data = json.load(f)
 
     captions = captions_data.get(video_filename, [])
+    print("Captions1: ", captions)
+
+    captions = captions_data[video_filename]
+    print("Captions2: ", captions)
     result = []
     previous_caption = None
 
