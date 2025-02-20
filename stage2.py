@@ -37,6 +37,7 @@ llm_openai = ChatOpenAI(
 def create_agent(llm, tools: list, system_prompt: str):
     """
     Create an agent with the given system prompt and tools.
+    The prompt contains placeholders for the conversation and the agent's internal reasoning (scratchpad).
     """
     prompt = ChatPromptTemplate.from_messages(
         [
@@ -51,39 +52,68 @@ def create_agent(llm, tools: list, system_prompt: str):
 
 def execute_video_question_answering():
     """
-    Execute the VideoQuestionAnswering task using a single agent.
+    Execute the VideoQuestionAnswering task using a single enhanced agent.
 
     The agent's task is to analyze the video using available tools and select the most plausible answer
     among the five options provided.
+
+    The system prompt instructs the agent to always perform a self-reflection on its reasoning before 
+    outputting the final answer.
+
+    This version does not use an external iterative prompting loop; instead, it performs a single invocation.
+
+    The function returns a 3-tuple:
+        (prediction_result, agents_result_dict, agent_prompts)
     """
     # Load the question data from an environment variable
     target_question_data = json.loads(os.getenv("QA_JSON_STR"))
 
-    # Create a system prompt that outlines the task instructions only
+    # Enhanced system prompt with chain-of-thought instructions and self-reflection requirement
+
     system_prompt = (
-        "Your task is VideoQuestionAnswering. You must analyze the video using available tools and choose "
-        "the most plausible answer among the five options provided. Think step by step and eventually respond "
-        "with 'FINISH' followed by your final answer."
-        "Note: You MUST use all the tools provided to you for the analysis."
+        "Your task is VideoQuestionAnswering. You must analyze the video using available tools and generate "
+        "a concise answer (1-2 words) to the given open-ended question.\n"
+        "\n"
+        "To ensure a high-quality response, evaluate your answer based on:\n"
+        "1. **Evidence Support:** Assess the extent to which direct evidence from the video supports your answer.\n"
+        "\n"
+        "Follow these steps:\n"
+        "a. Extract and summarize key details from the video, focusing on relevant actions, objects, and interactions.\n"
+        "b. Determine the most plausible 1-2 word answer based only on the extracted evidence.\n"
+        "c. Justify your choice using direct evidence from the video.\n"
+        "d. Record your step-by-step chain-of-thought and intermediate reasoning in the scratchpad.\n"
+        "e. ALWAYS include a 'Self-Reflection:' section before your final answer where you review your reasoning, check for inconsistencies, and refine your response.\n"
+        "f. Finally, output your final answer in the following format: **'Pred: xxxxx'** (1-2 words only).\n"
+        "\n"
+        "--- Example ---\n"
+        "Question: What is the chef holding while cutting vegetables?\n"
+        "\n"
+        "Chain-of-Thought:\n"
+        "  - The video shows the chef standing at a counter, using a knife to cut vegetables.\n"
+        "  - The chef holds the vegetables steady with their left hand while cutting with their right hand.\n"
+        "  - Evidence Support: The video clearly shows the chef gripping a vegetable while cutting.\n"
+        "\n"
+        "Self-Reflection:\n"
+        "  - The extracted details strongly support the answer 'vegetable'. There are no conflicting observations.\n"
+        "\n"
+        "Pred: vegetable\n"
+        "--- End Example ---\n\n"
+        "Now, please analyze the provided video, reflect on your reasoning using **only direct evidence from the video**, "
+        "and generate the most well-supported 1-2 word answer in the format: **'Pred: xxxxx'**."
     )
 
-    # Generate the question sentence using the provided utility (do not include this in the system prompt)
+    # Generate the question sentence using the provided utility (this text is not part of the system prompt)
     question_sentence = create_question_sentence(target_question_data)
 
-    # Create the single agent with the defined system prompt and tools
+    # Create the single agent with the defined enhanced system prompt and tools
     single_agent = create_agent(llm_openai, tools, system_prompt=system_prompt)
 
-    # Print the input message for debugging purposes
-    print("******** Stage2 Single Agent Input Message **********")
-    print(question_sentence)
-    print("*****************************************************")
-
-    # Create the input state message with the question sentence
-    state = {"messages": [HumanMessage(content=question_sentence, name="system")]}
+    # Create the input state message with the question sentence as user input
+    state = {"messages": [HumanMessage(content=question_sentence, name="user")]}
     result = single_agent.invoke(state)
     output_content = result["output"]
 
-    # Process the output result (e.g., converting answer to expected format)
+    # Process the output result (e.g., converting the answer to the expected format)
     prediction_result = post_process(output_content)
 
     # If the result is invalid, retry the task
@@ -94,10 +124,10 @@ def execute_video_question_answering():
         time.sleep(1)
         return execute_video_question_answering()
 
-    # Print the result for debugging purposes
-    print("*********** Stage2 Single Agent Result **************")
+    # Print the final result for debugging purposes
+    print("*********** Final Agent Result **************")
     print(output_content)
-    print("******************************************************")
+    print("**********************************************")
 
     # Display truth and prediction if a dataset is specified via environment variable
     if os.getenv("DATASET") in ["egoschema", "nextqa"]:
@@ -110,7 +140,7 @@ def execute_video_question_answering():
             print("Error: Invalid prediction result value")
     elif os.getenv("DATASET") == "momaqa":
         print(f"Truth: {target_question_data['truth']}, Pred: {prediction_result}")
-    print("******************************************************")
+    print("**********************************************")
 
     # Build additional outputs for debugging and traceability
     agents_result_dict = {"single_agent": output_content}

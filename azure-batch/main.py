@@ -17,7 +17,8 @@ for var in env_vars:
 # Set the environment variables
 os.environ["IMAGES_DIR_PATH"] = "/root/VideoMultiAgents/images"
 if os.getenv("DATASET") == "egoschema":
-    os.environ["CAPTIONS_FILE"]           = "/root/VideoMultiAgents/egoschema_graph_captions.json"
+    os.environ["CAPTIONS_FILE"]           = "/root/VideoMultiAgents/egoschema_captions_gpt4o.json"
+    os.environ["GRAPH_DATA_PATH"]         = "/root/VideoMultiAgents/egoschema_graph_captions.json"
     os.environ["VIDEOTREE_RESULTS_PATH"]  = "/root/VideoMultiAgents/egoschema_videotree_result.json"
     os.environ["SUMMARY_CACHE_JSON_PATH"] = "/root/VideoMultiAgents/egoschema_summary_cache.json"
     # os.environ["SUMMARY_INFO"]            = json.dumps(get_video_summary(os.getenv("SUMMARY_CACHE_JSON_PATH"), os.getenv("VIDEO_FILE_NAME")))
