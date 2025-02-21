@@ -7,8 +7,7 @@ import argparse
 from util import select_data_and_mark_as_processing
 from util import save_result
 from util import set_environment_variables
-from stage1 import execute_stage1
-from stage2 import execute_stage2
+from single_agent import execute_video_question_answering
 
 parser = argparse.ArgumentParser(description="Dataset to use for the analysis")
 parser.add_argument('--dataset', type=str, help="Example: egoschema, nextqa, etc.")
@@ -66,18 +65,11 @@ while True:
         print ("****************************************")
         set_environment_variables(dataset, video_id, json_data)
 
-        # Execute stage1
-        print ("execute stage1")
-        expert_info = execute_stage1()
-
-
-        # Execute stage2
-        print ("execute stage2")
-        result, agent_response, agent_prompts = execute_stage2(expert_info)
+        result, agent_response, agent_prompts = execute_video_question_answering()
 
         # Save result
         print("result: ", result)
-        save_result(os.getenv("QUESTION_FILE_PATH"), video_id, expert_info, agent_prompts, agent_response, result, save_backup=False)
+        save_result(os.getenv("QUESTION_FILE_PATH"), video_id, agent_prompts, agent_response, result, save_backup=False)
 
     except Exception as e:
         print ("Error: ", e)

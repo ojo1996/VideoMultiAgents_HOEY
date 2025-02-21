@@ -67,7 +67,7 @@ def execute_video_question_answering():
     single_agent = create_agent(llm_openai, tools, system_prompt=system_prompt)
 
     # Print the input message for debugging purposes
-    print("******** Stage2 Single Agent Input Message **********")
+    print("******** Single Agent Input Message **********")
     print(question_sentence)
     print("*****************************************************")
 
@@ -88,7 +88,7 @@ def execute_video_question_answering():
         return execute_video_question_answering()
 
     # Print the result for debugging purposes
-    print("*********** Stage2 Single Agent Result **************")
+    print("*********** Single Agent Result **************")
     print(output_content)
     print("******************************************************")
 

@@ -365,10 +365,9 @@ def unmark_as_processing(file_path, video_id):
     return False
 
 
-def save_result(file_path, video_id:str, expert_info:dict, agent_prompts:dict, agent_response:dict, prediction_result:int, save_backup=False):
+def save_result(file_path, video_id:str, agent_prompts:dict, agent_response:dict, prediction_result:int, save_backup=False):
     questions = read_json_file(file_path)
 
-    questions[video_id]["expert_info"] = expert_info
     questions[video_id]["agent_prompts"] = agent_prompts
     questions[video_id]["response"] = agent_response
     questions[video_id]["pred"] = prediction_result
