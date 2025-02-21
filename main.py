@@ -10,7 +10,8 @@ from util import select_data_and_mark_as_processing
 from util import save_result
 from util import set_environment_variables
 from util import read_json_file
-from single_agent import execute_video_question_answering
+from single_agent import execute_single_agent
+from multi_agent import execute_multi_agent
 import traceback
 
 # Import required tools for video analysis
@@ -40,7 +41,7 @@ def get_tools(modality):
     else:
         raise ValueError(f"Unknown modality: {modality}")
 
-def process_single_video(modality, dataset, video_data):
+def process_single_video(modality, agents, dataset, video_data):
     """
     Process a single video with tools initialized inside the worker.
     
@@ -57,11 +58,14 @@ def process_single_video(modality, dataset, video_data):
         # Set environment variables for this process
         set_environment_variables(dataset, video_id, json_data)
         
-        # Initialize tools inside the worker process
-        tools = get_tools(modality)
 
-        # Execute video analysis
-        result, agent_response, agent_prompts = execute_video_question_answering(tools)
+        if agents == "single":
+            # Initialize tools inside the worker process
+            tools = get_tools(modality)
+            # Execute video analysis
+            result, agent_response, agent_prompts = execute_single_agent(tools)
+        elif agents.startswith("multi"):
+            result, agent_response, agent_prompts = execute_multi_agent()
 
         # Save results
         print(f"Results for video {video_id}: {result}")
@@ -97,6 +101,7 @@ def main():
     parser = argparse.ArgumentParser(description="Dataset to use for the analysis")
     parser.add_argument('--dataset', type=str, help="Example: egoschema, nextqa, etc.")
     parser.add_argument('--modality', type=str, help="Example: video, text, graph, all.")
+    parser.add_argument('--agents', type=str, help="Example: single, multi-star.")
     parser.add_argument('--num_workers', type=int, default=None, 
                        help="Number of worker processes. Defaults to CPU count - 1")
     args = parser.parse_args()
@@ -111,7 +116,7 @@ def main():
         os.environ["IMAGES_DIR_PATH"] = "/root/nas_Ego4D/egoschema/images"
         os.environ["FRAME_NUM"] = "90"
     elif args.dataset == "nextqa":
-        os.environ["QUESTION_FILE_PATH"] = f"data/nextqa/val_single_{args.modality}.json"
+        os.environ["QUESTION_FILE_PATH"] = f"data/nextqa/val_{args.agents}_{args.modality}.json"
         os.environ["GRAPH_DATA_PATH"] = "data/nextqa/nextqa_graph_captions.json"
         os.environ["CAPTIONS_FILE"] = "data/nextqa/captions_gpt4o.json"
         os.environ["IMAGES_DIR_PATH"] = "data/nextqa/frames"
@@ -138,7 +143,7 @@ def main():
     # Create process pool and process videos in parallel
     with Pool(num_workers) as pool:
         # Create a partial function with fixed arguments
-        process_func = partial(process_single_video, args.modality, args.dataset)
+        process_func = partial(process_single_video, args.modality, args.agents, args.dataset)
         
         # Process videos in parallel and collect results
         results = pool.map(process_func, unprocessed_videos)

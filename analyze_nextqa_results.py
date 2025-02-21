@@ -16,9 +16,9 @@ def calculate_accuracy(data):
 def analyze_nextqa_validation():
     # Define file paths
     base_path = Path('data/nextqa')
-    configs = ['text', 'graph', 'video', 'all']
+    configs = ['multi_star_all', 'single_text', 'single_graph', 'single_video', 'single_all']
     file_paths = {
-        config: base_path / f'val_single_{config}.json'
+        config: base_path / f'val_{config}.json'
         for config in configs
     }
     
@@ -30,14 +30,14 @@ def analyze_nextqa_validation():
         try:
             data[config] = load_json(filepath)
             # Filter questions with pred field
-            valid_questions = {k: v for k, v in data[config].items() if 'pred' in v and v['pred'] > 0}
+            valid_questions = {k: v for k, v in data[config].items() if 'pred' in v and v['pred'] >= 0}
             
-            if len(valid_questions) < 200:
-                print(f"Warning: {config} configuration has fewer than 200 valid questions ({len(valid_questions)})")
+            if len(valid_questions) < 300:
+                print(f"Warning: {config} configuration has fewer than 300 valid questions ({len(valid_questions)})")
                 sampled_data[config] = valid_questions
             else:
-                # Randomly sample 200 questions
-                sampled_qids = random.sample(list(valid_questions.keys()), 200)
+                # Randomly sample 300 questions
+                sampled_qids = random.sample(list(valid_questions.keys()), 300)
                 sampled_data[config] = {qid: valid_questions[qid] for qid in sampled_qids}
                 
         except FileNotFoundError:

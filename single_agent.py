@@ -35,7 +35,7 @@ def create_agent(llm, tools: list, system_prompt: str):
     executor = AgentExecutor(agent=agent, tools=tools)
     return executor
 
-def execute_video_question_answering(tools):
+def execute_single_agent(tools):
     """
     Execute the VideoQuestionAnswering task using a single agent.
 
@@ -77,7 +77,7 @@ def execute_video_question_answering(tools):
         print("Error: The result is -1. Retrying VideoQuestionAnswering with the single agent.")
         print("***********************************************************")
         time.sleep(1)
-        return execute_video_question_answering(tools)
+        return execute_single_agent(tools)
 
     # Print the result for debugging purposes
     print("*********** Single Agent Result **************")
@@ -104,4 +104,4 @@ def execute_video_question_answering(tools):
     return prediction_result, agents_result_dict, agent_prompts
 
 if __name__ == "__main__":
-    execute_video_question_answering([])
+    execute_single_agent([])
