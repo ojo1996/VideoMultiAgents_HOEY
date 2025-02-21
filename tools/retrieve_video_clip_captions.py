@@ -14,7 +14,10 @@ def retrieve_video_clip_captions() -> list[str]:
     Returns:
     list[str]: A list of captions for the video.
     """
+    return retrieve_captions()
 
+
+def retrieve_captions():
     print("Called the Image captioning tool.")
 
     video_filename   = os.getenv("VIDEO_FILE_NAME") 
@@ -31,6 +34,9 @@ def retrieve_video_clip_captions() -> list[str]:
         captions_data = json.load(f)
 
     captions = captions_data.get(video_filename, [])
+    # In case the caption file is not question guided
+    if len(captions) == 0:
+        captions = captions_data.get(video_filename.split('-')[1], [])
     print("Captions: ", captions)
 
     result = []

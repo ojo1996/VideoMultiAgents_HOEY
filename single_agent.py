@@ -6,19 +6,11 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from langchain.agents import create_openai_tools_agent, AgentExecutor
 
-# Import required tools for video analysis
-from tools.retrieve_video_clip_captions import retrieve_video_clip_captions
-from tools.analyze_video_gpt4o import analyze_video_gpt4o
-from tools.analyze_video_using_graph_data import analyze_video_using_graph_data
-
 # Import utility functions (e.g., for post-processing and question sentence generation)
 from util import post_process, create_question_sentence
 
 # Retrieve the OpenAI API key from the environment
 openai_api_key = os.getenv("OPENAI_API_KEY")
-
-# Define the list of tools for video analysis
-tools = [analyze_video_gpt4o]
 
 # Instantiate the LLM with appropriate configurations
 llm_openai = ChatOpenAI(
@@ -43,7 +35,7 @@ def create_agent(llm, tools: list, system_prompt: str):
     executor = AgentExecutor(agent=agent, tools=tools)
     return executor
 
-def execute_video_question_answering():
+def execute_video_question_answering(tools):
     """
     Execute the VideoQuestionAnswering task using a single agent.
 
@@ -85,7 +77,7 @@ def execute_video_question_answering():
         print("Error: The result is -1. Retrying VideoQuestionAnswering with the single agent.")
         print("***********************************************************")
         time.sleep(1)
-        return execute_video_question_answering()
+        return execute_video_question_answering(tools)
 
     # Print the result for debugging purposes
     print("*********** Single Agent Result **************")
@@ -112,4 +104,4 @@ def execute_video_question_answering():
     return prediction_result, agents_result_dict, agent_prompts
 
 if __name__ == "__main__":
-    execute_video_question_answering()
+    execute_video_question_answering([])

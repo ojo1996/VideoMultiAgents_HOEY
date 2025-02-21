@@ -8,9 +8,17 @@ from util import select_data_and_mark_as_processing
 from util import save_result
 from util import set_environment_variables
 from single_agent import execute_video_question_answering
+import traceback
+
+# Import required tools for video analysis
+from tools.retrieve_video_clip_captions import retrieve_video_clip_captions
+from tools.analyze_video_gpt4o import analyze_video_gpt4o
+from tools.retrieve_video_scene_graph import retrieve_video_scene_graph
+from tools.analyze_all_gpt4o import analyze_all_gpt4o
 
 parser = argparse.ArgumentParser(description="Dataset to use for the analysis")
 parser.add_argument('--dataset', type=str, help="Example: egoschema, nextqa, etc.")
+parser.add_argument('--modality', type=str, help="Example: video, text, graph, all.")
 args = parser.parse_args()
 dataset = args.dataset
 
@@ -43,6 +51,15 @@ else:
     raise ValueError(f"Unknown dataset: {dataset}")
 
 
+if args.modality == "video":
+    tools = [analyze_video_gpt4o]
+elif args.modality == "text":
+    tools = [retrieve_video_clip_captions]
+elif args.modality == "graph":
+    tools = [retrieve_video_scene_graph]
+elif args.modality == "all":
+    tools = [analyze_all_gpt4o]
+
 # Sleep for a random duration (0–10 seconds) to avoid simultaneous access to the JSON file by multiple containers
 sleep_time = random.uniform(0, 10)
 print ("Sleeping for {} seconds".format(sleep_time))
@@ -65,7 +82,7 @@ while True:
         print ("****************************************")
         set_environment_variables(dataset, video_id, json_data)
 
-        result, agent_response, agent_prompts = execute_video_question_answering()
+        result, agent_response, agent_prompts = execute_video_question_answering(tools)
 
         # Save result
         print("result: ", result)
@@ -73,6 +90,7 @@ while True:
 
     except Exception as e:
         print ("Error: ", e)
+        print(traceback.format_exc())
         #unmark_as_processing(QUESTION_FILE_PATH, video_id)
         time.sleep(1)
         continue
