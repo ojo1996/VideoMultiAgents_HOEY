@@ -79,7 +79,7 @@ def process_single_video(modality, agents, dataset, video_data):
         time.sleep(1)
         return False
 
-def get_unprocessed_videos(question_file_path):
+def get_unprocessed_videos(question_file_path, max_items=1000):
     """
     Get a list of all unprocessed videos from the question file.
     
@@ -91,7 +91,7 @@ def get_unprocessed_videos(question_file_path):
     """
     dict_data = read_json_file(question_file_path)
     unprocessed_videos = []
-    for i, (video_id, json_data) in enumerate(dict_data.items()):
+    for i, (video_id, json_data) in enumerate(list(dict_data.items())[:max_items]):
         if "pred" not in json_data.keys() or json_data["pred"] == -2:
             unprocessed_videos.append((video_id, json_data))
     return unprocessed_videos
@@ -119,7 +119,7 @@ def main():
         os.environ["QUESTION_FILE_PATH"] = f"data/nextqa/val_{args.agents}_{args.modality}.json"
         os.environ["GRAPH_DATA_PATH"] = "data/nextqa/nextqa_graph_captions.json"
         os.environ["CAPTIONS_FILE"] = "data/nextqa/captions_gpt4o.json"
-        os.environ["IMAGES_DIR_PATH"] = "data/nextqa/frames"
+        os.environ["IMAGES_DIR_PATH"] = "data/nextqa/frames_aligned/"
         os.environ["FRAME_NUM"] = "180"
     elif args.dataset == "momaqa":
         os.environ["QUESTION_FILE_PATH"] = "/root/VideoMultiAgents/momaqa_test_anno.json"
