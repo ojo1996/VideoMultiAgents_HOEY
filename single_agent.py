@@ -7,7 +7,7 @@ from langchain_openai import ChatOpenAI
 from langchain.agents import create_openai_tools_agent, AgentExecutor
 
 # Import utility functions (e.g., for post-processing and question sentence generation)
-from util import post_process, create_question_sentence
+from util import post_process, create_question_sentence, prepare_intermediate_steps
 
 # Retrieve the OpenAI API key from the environment
 openai_api_key = os.getenv("OPENAI_API_KEY")
@@ -32,7 +32,7 @@ def create_agent(llm, tools: list, system_prompt: str):
         ]
     )
     agent = create_openai_tools_agent(llm, tools, prompt)
-    executor = AgentExecutor(agent=agent, tools=tools)
+    executor = AgentExecutor(agent=agent, tools=tools, return_intermediate_steps=True)
     return executor
 
 def execute_single_agent(tools):
@@ -51,6 +51,11 @@ def execute_single_agent(tools):
         "the most plausible answer among the five options provided. Think step by step and eventually respond "
         "with 'FINISH' followed by your final answer."
     )
+
+    summary_info = json.loads(os.getenv("SUMMARY_INFO"))
+    system_prompt += "\n\n[Video Summary Information]\n"
+    system_prompt += "Entire Summary: \n" + summary_info["entire_summary"] + "\n\n"
+    system_prompt += "Detail Summaries: \n" + summary_info["detail_summaries"]
 
     # Generate the question sentence using the provided utility (do not include this in the system prompt)
     question_sentence = create_question_sentence(target_question_data)
@@ -98,7 +103,8 @@ def execute_single_agent(tools):
     print("******************************************************")
 
     # Build additional outputs for debugging and traceability
-    agents_result_dict = {"single_agent": output_content}
+    intermediates = prepare_intermediate_steps(result.get("intermediate_steps", []))
+    agents_result_dict = {"output": output_content, "intermediate_steps": intermediates}
     agent_prompts = {"system_prompt": system_prompt}
 
     return prediction_result, agents_result_dict, agent_prompts
