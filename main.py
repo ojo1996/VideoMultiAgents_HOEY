@@ -13,7 +13,7 @@ from util import read_json_file
 from single_agent import execute_single_agent
 import multi_agent_star
 import multi_agent_report
-import multi_agent_debate
+# import multi_agent_debate
 import traceback
 
 # Import required tools for video analysis
@@ -123,8 +123,9 @@ def main():
         os.environ["FRAME_NUM"] = "90"
     elif args.dataset == "nextqa":
         os.environ["QUESTION_FILE_PATH"] = f"data/nextqa/val_{args.agents}_{args.modality}.json"
-        os.environ["GRAPH_DATA_PATH"] = "data/nextqa/nextqa_graph_captions.json"
-        os.environ["CAPTIONS_FILE"] = "data/nextqa/captions_gpt4o.json"
+        os.environ["GRAPH_DATA_PATH"] = "data/nextqa/nextqa_graph_captions_gpt4o.json"
+        os.environ["CAPTIONS_FILE"] = "data/nextqa/captions_gpt4o_question_guided.json"
+        os.environ["SUMMARY_CACHE_JSON_PATH"] = "data/nextqa/nextqa_summary_cache_val.json"
         os.environ["IMAGES_DIR_PATH"] = "data/nextqa/frames_aligned/"
         os.environ["FRAME_NUM"] = "180"
     elif args.dataset == "momaqa":

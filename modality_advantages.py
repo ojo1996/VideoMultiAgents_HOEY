@@ -67,7 +67,7 @@ for modality in ['text', 'graph', 'video']:
 assert len(all_questions) == 1000, f"Expected 1000 common questions, got {len(all_questions)}"
 
 # Load multi-star data
-with open('data/nextqa/val_multi_star_all.json', 'r') as f:
+with open('data/nextqa/val_multi_star_all_intermediate.json', 'r') as f:
     multi_star_data = json.load(f)
 
 # Process only the common questions
