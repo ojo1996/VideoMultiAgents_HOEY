@@ -11,7 +11,9 @@ from util import save_result
 from util import set_environment_variables
 from util import read_json_file
 from single_agent import execute_single_agent
-from multi_agent import execute_multi_agent
+import multi_agent_star
+import multi_agent_report
+import multi_agent_debate
 import traceback
 
 # Import required tools for video analysis
@@ -64,8 +66,12 @@ def process_single_video(modality, agents, dataset, video_data):
             tools = get_tools(modality)
             # Execute video analysis
             result, agent_response, agent_prompts = execute_single_agent(tools)
-        elif agents.startswith("multi"):
-            result, agent_response, agent_prompts = execute_multi_agent()
+        elif agents.startswith("multi-report"):
+            result, agent_response, agent_prompts = multi_agent_report.execute_multi_agent()
+        elif agents.startswith("multi-star"):
+            result, agent_response, agent_prompts = multi_agent_star.execute_multi_agent()
+        # elif agents.startswith("multi-debate"):
+        #     result, agent_response, agent_prompts = multi_agent_debate.execute_multi_agent()
 
         # Save results
         print(f"Results for video {video_id}: {result}")
