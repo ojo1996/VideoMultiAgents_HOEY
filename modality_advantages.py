@@ -262,3 +262,107 @@ for q_type, type_data in type_comparisons.items():
     create_heatmap(type_data,
                   f'Advantages by Modality for {q_type} Questions',
                   f'modality_advantages_{q_type}.png')
+
+# Calculate and visualize Cohen's Kappa scores
+from sklearn.metrics import cohen_kappa_score
+import seaborn as sns
+
+def calculate_kappa_matrix():
+    """Calculate Cohen's Kappa agreement between modalities for all questions"""
+    modalities = ['text', 'graph', 'video']
+    kappa_matrix = np.zeros((3,3))
+    
+    # Get predictions for all questions
+    predictions = {
+        modality: [modality_data[modality][qid]['pred'] 
+                  for qid in all_questions]
+        for modality in modalities
+    }
+    
+    # Calculate kappa for each pair
+    for i, mod1 in enumerate(modalities):
+        for j, mod2 in enumerate(modalities):
+            if i != j:
+                kappa = cohen_kappa_score(predictions[mod1], predictions[mod2])
+                kappa_matrix[i,j] = kappa
+            else:
+                kappa_matrix[i,j] = 1.0  # Perfect agreement with self
+                
+    return kappa_matrix, modalities
+
+def calculate_kappa_by_type():
+    """Calculate Cohen's Kappa agreement between modalities by question type"""
+    modalities = ['text', 'graph', 'video']
+    type_kappas = {}
+    
+    # Group questions by type
+    questions_by_type = defaultdict(list)
+    for qid in all_questions:
+        q_type = modality_data['text'][qid]['type']
+        questions_by_type[q_type].append(qid)
+    
+    # Calculate kappa matrices for each type
+    for q_type, qids in questions_by_type.items():
+        kappa_matrix = np.zeros((3,3))
+        
+        predictions = {
+            modality: [modality_data[modality][qid]['pred'] 
+                      for qid in qids]
+            for modality in modalities
+        }
+        
+        for i, mod1 in enumerate(modalities):
+            for j, mod2 in enumerate(modalities):
+                if i != j:
+                    kappa = cohen_kappa_score(predictions[mod1], predictions[mod2])
+                    kappa_matrix[i,j] = kappa
+                else:
+                    kappa_matrix[i,j] = 1.0
+                    
+        type_kappas[q_type] = kappa_matrix
+        
+    return type_kappas, modalities
+# Calculate overall kappa scores
+overall_kappa, modalities = calculate_kappa_matrix()
+
+# Calculate and plot kappa scores by question type
+type_kappas, modalities = calculate_kappa_by_type()
+
+# Set up the plot
+plt.figure(figsize=(15, 8))
+
+# Extract agreement pairs
+def get_agreement_pairs(kappa_matrix):
+    video_text = kappa_matrix[modalities.index('video'), modalities.index('text')]
+    text_graph = kappa_matrix[modalities.index('text'), modalities.index('graph')]
+    graph_video = kappa_matrix[modalities.index('graph'), modalities.index('video')]
+    return [video_text, text_graph, graph_video]
+
+# Get data for all question types and overall 
+all_agreements = []
+all_agreements.append(get_agreement_pairs(overall_kappa))
+for q_type in sorted_q_types:
+    all_agreements.append(get_agreement_pairs(type_kappas[q_type]))
+
+# Set up bar positions
+x = np.arange(len(sorted_q_types) + 1)  # +1 for overall
+width = 0.25  # width of bars
+
+# Plot bars for each pair
+plt.bar(x - width, [agreements[0] for agreements in all_agreements], width, label='Video-Text')
+plt.bar(x, [agreements[1] for agreements in all_agreements], width, label='Text-Graph')
+plt.bar(x + width, [agreements[2] for agreements in all_agreements], width, label='Graph-Video')
+
+# Customize plot
+plt.rcParams.update({'font.size': 14})  # Increase base font size
+plt.xlabel('Question Type', fontsize=16)
+plt.ylabel('Cohen\'s Kappa Score', fontsize=16)
+plt.title('Agreement Between Modalities by Question Type', fontsize=18)
+plt.xticks(x, ['Overall'] + sorted_q_types, fontsize=14)
+plt.legend(fontsize=14)
+plt.ylim(0, 1)
+plt.grid(True, axis='y', alpha=0.3)
+
+plt.tight_layout()
+plt.savefig('kappa_agreement_comparison.png', dpi=300)
+plt.close()
