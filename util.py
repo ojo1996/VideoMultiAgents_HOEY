@@ -3,7 +3,7 @@ import time
 import requests
 import datetime
 from retry import retry
-from openai import AzureOpenAI, OpenAI
+from openai import OpenAI
 import re
 import json
 import random
@@ -12,6 +12,7 @@ import base64
 import portalocker
 from mimetypes import guess_type
 import numpy as np
+from typing import Literal
 
 
 # Function to encode a local image into data URL
@@ -184,23 +185,39 @@ def create_question_sentence(question_data:dict, shuffle_questions=False):
     return prompt
 
 
-def create_stage2_agent_prompt(question_data:dict, generated_expert_prompt="", shuffle_questions=False):
-    prompt = create_question_sentence(question_data, shuffle_questions)
+def create_agent_prompt(question_data: dict, agent_type: Literal["text_expert", "video_expert", "graph_expert"] = "text_expert") -> str:
+    """
+    Creates a prompt for a specific agent type with predefined instructions.
+
+    :param question_data: Dictionary containing the question data.
+    :param agent_type: The type of expert agent. Must be one of:
+                        - "text_expert"
+                        - "video_expert"
+                        - "graph_expert"
+                        Default is "text_expert".
+    :return: Formatted prompt string.
+    """
+    prompt = create_question_sentence(question_data)
 
     summary_info = json.loads(os.getenv("SUMMARY_INFO"))
+    # summary_info = json.loads("/root/VideoMultiAgents/nextqa_summary_cache.json")
     prompt += "\n\n[Video Summary Information]\n"
     prompt += "Entire Summary: \n" + summary_info["entire_summary"] + "\n\n"
     prompt += "Detail Summaries: \n" + summary_info["detail_summaries"]
-    
+
     prompt += "\n\n[Instructions]\n"
-    # prompt += "Understand the question and options well and focus on the differences between the options.\n"
-    # prompt += "Exclude options that contain unnecessary embellishments, such as subjective adverbs or clauses that cannot be objectively determined, and consider only the remaining options.\n"
-    prompt += generated_expert_prompt
-    prompt += "\nBe sure to call the Analyze video tool."
+    instructions = {
+        "text_expert": "Your task is to answer the question related to the video as a Text Expert. Analyze the video from the perspective of a professional text analyst and answer the following questions based on your expertise. You must use the tool to obtain relevant data, and integrate that data into your answer. Please think step-by-step.",
+        "video_expert": "Your task is to answer the question related to the video as a Video Expert. Analyze the video from the perspective of a professional video analyst and answer the following questions based on your expertise. You must use the tool to obtain relevant data, and integrate that data into your answer. Please think step-by-step.",
+        "graph_expert": "Your task is to answer the question related to the video as a Graph Expert. Analyze the video from the perspective of a professional graph analyst and answer the following questions based on your expertise. You must use the tool to obtain relevant data, and integrate that data into your answer. Please think step-by-step."
+    }
+
+    prompt += instructions[agent_type]
+
     return prompt
 
 
-def create_stage2_organizer_prompt():
+def create_organizer_prompt():
 
     if os.getenv("DATASET") == "egoschema" or os.getenv("DATASET") == "nextqa":
         organizer_prompt = (
@@ -236,6 +253,59 @@ def create_stage2_organizer_prompt():
     return organizer_prompt
 
 
+def create_stage2_agent_prompt(question_data:dict, generated_expert_prompt="", shuffle_questions=False):
+    prompt = create_question_sentence(question_data, shuffle_questions)
+
+    summary_info = json.loads(os.getenv("SUMMARY_INFO"))
+    prompt += "\n\n[Video Summary Information]\n"
+    prompt += "Entire Summary: \n" + summary_info["entire_summary"] + "\n\n"
+    prompt += "Detail Summaries: \n" + summary_info["detail_summaries"]
+    
+    prompt += "\n\n[Instructions]\n"
+    # prompt += "Understand the question and options well and focus on the differences between the options.\n"
+    # prompt += "Exclude options that contain unnecessary embellishments, such as subjective adverbs or clauses that cannot be objectively determined, and consider only the remaining options.\n"
+    prompt += generated_expert_prompt
+    prompt += "\nBe sure to call the Analyze video tool."
+    return prompt
+
+
+def create_stage2_organizer_prompt():
+
+    if os.getenv("DATASET") == "egoschema" or os.getenv("DATASET") == "nextqa":
+        organizer_prompt = (
+            "[Instructions]\n"
+            "You are the organizer of a discussion. "
+            "Your task is to summarize the opinions of three Agents, determine whether further discussion is necessary, and, if the discussion is already concluded, provide the final decision.\n"
+            "Your output should be one of the following options: OptionA, OptionB, OptionC, OptionD, OptionE, along with an explanation.\n"
+            "The correct answer is always within these 5 options.\n"
+            # "Base your decision primarily on a majority vote. If the opinions of the three Agents are divided, initiate a follow-up discussion to reach a consensus.\n\n"
+            "Base your decision on a comprehensive analysis of each agent's opinions and the intermediate information provided. Evaluate the reasoning behind each response to determine whether the evidence is sufficient for a final decision or if further discussion is needed to clarify uncertainties.\n\n"
+
+            "[Output Format]\n"
+            "Your response should be formatted as follows:\n"
+            "- Additional Discussion Needed: [YES/NO]\n"
+            "- Pred: OptionX (If additional discussion is needed, provide the current leading candidate.)\n"
+            "- Explanation: Provide a detailed explanation, including reasons for requiring additional discussion or the reasoning behind the final decision."
+        )
+    elif os.getenv("DATASET") == "momaqa":
+        organizer_prompt = (
+            "[Instructions]\n"
+            "You are the organizer of a discussion. "
+            "Your task is to summarize the opinions of three Agents, determine whether further discussion is necessary, and, if the discussion is already concluded, provide the final answer.\n"
+            "Your output should be a concise and clear answer to the question, along with an explanation.\n"
+            "Base your decision primarily on a majority vote. If the opinions of the three Agents are divided, initiate a follow-up discussion to reach a consensus.\n\n"
+
+            "[Output Format]\n"
+            "Your response should be formatted as follows:\n"
+            "Note: If any part of the output is a number, represent it as a digit (e.g., '1') rather than as a word (e.g., 'one').\n"
+            "- Additional Discussion Needed: [YES/NO]\n"
+            "- Pred: [Your final answer, stated as a single word or phrase (e.g., 'basketball player', 'preparing food')]\n"
+            "- Explanation: Provide a detailed explanation, including reasons for requiring additional discussion or the reasoning behind the final answer."
+        )
+
+    return organizer_prompt
+
+
 def set_environment_variables(dataset:str, video_id:str, qa_json_data:dict):
     if dataset == "egoschema": index_name = video_id
     elif dataset == "nextqa" : index_name = video_id.split("_")[0]
@@ -245,6 +315,7 @@ def set_environment_variables(dataset:str, video_id:str, qa_json_data:dict):
         os.environ["VIDEO_FILE_NAME"] = video_id
     elif dataset == "nextqa":
         os.environ["VIDEO_FILE_NAME"] = qa_json_data["map_vid_vidorid"].replace("/", "-")
+        os.environ["QUESTION_ID"] = qa_json_data["q_uid"]
     elif dataset == "momaqa":
         os.environ["VIDEO_FILE_NAME"] = qa_json_data["video_id"]
 
@@ -535,6 +606,27 @@ def create_summary_of_video(openai_api_key="", temperature=0.0, image_dir="", vi
     
     return video_summaries[vid]
 
+
+def prepare_intermediate_steps(steps):
+
+    sanitized = []
+    for step in steps:
+        action, output = step
+        if hasattr(action, "__dict__"):
+            action_dict = action.__dict__
+        elif isinstance(action, dict):
+            action_dict = action
+        else:
+            action_dict = action
+
+        filtered_action = {}
+        if "tool" in action_dict:
+            filtered_action["tool"] = action_dict["tool"]
+        if "tool_input" in action_dict:
+            filtered_action["tool_input"] = action_dict["tool_input"]
+
+        sanitized.append((filtered_action, output))
+    return sanitized
 
 
 

@@ -16,7 +16,7 @@ from tools.retrieve_video_clip_captions import retrieve_video_clip_captions
 from tools.analyze_video_gpt4o import analyze_video_gpt4o
 from tools.retrieve_video_scene_graph import retrieve_video_scene_graph
 from tools.dummy_tool import dummy_tool
-from util import post_process, ask_gpt4_omni, create_stage2_agent_prompt, create_stage2_organizer_prompt, create_question_sentence
+from util import post_process, create_stage2_agent_prompt, create_stage2_organizer_prompt, create_question_sentence, prepare_intermediate_steps
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -47,7 +47,7 @@ def create_agent(llm, tools: list, system_prompt: str):
         ]
     )
     agent = create_openai_tools_agent(llm, tools, prompt)
-    executor = AgentExecutor(agent=agent, tools=tools)
+    executor = AgentExecutor(agent=agent, tools=tools, return_intermediate_steps=True) # to return intermediate steps
     return executor
 
 
@@ -56,9 +56,14 @@ def agent_node(state, agent, name):
     print(f" Executing {name} node!")
     print ("****************************************")
     result = agent.invoke(state)
-    # print ("****************************************")
-    # print ("result: ", result["output"])
-    return {"messages": [HumanMessage(content=result["output"], name=name)]}
+
+    # Extract tool results
+    intermediate_steps = prepare_intermediate_steps(result.get("intermediate_steps", []))
+
+    # Combine output and intermediate steps
+    combined_output = f"Output:\n{result['output']}\n\nIntermediate Steps:\n{intermediate_steps}"
+
+    return {"messages": [HumanMessage(content=combined_output, name=name)]}
 
 
 class AgentState(TypedDict):
@@ -184,7 +189,7 @@ def execute_multi_agent():
         print ("Error: The result is -1. So, retry the stage2.")
         print ("***********************************************************")
         time.sleep(1)
-        return execute_multiagent()
+        return execute_multi_agent()
 
     agents_result_dict = mas_result_to_dict(agents_result)
 
@@ -202,13 +207,4 @@ def execute_multi_agent():
 
 if __name__ == "__main__":
 
-    data = {
-        "ExpertName1": "Culinary Expert",
-        "ExpertName1Prompt": "You are a Culinary Expert. Watch the video from the perspective of a professional chef and answer the following questions based on your expertise. Please think step-by-step.",
-        "ExpertName2": "Kitchen Equipment Specialist",
-        "ExpertName2Prompt": "You are a Kitchen Equipment Specialist. Watch the video from the perspective of an expert in kitchen tools and equipment and answer the following questions based on your expertise. Please think step-by-step.",
-        "ExpertName3": "Home Cooking Enthusiast",
-        "ExpertName3Prompt": "You are a Home Cooking Enthusiast. Watch the video from the perspective of someone who loves cooking at home and answer the following questions based on your expertise. Please think step-by-step."
-    }
-
-    execute_multiagent(data)
+    execute_multi_agent()
