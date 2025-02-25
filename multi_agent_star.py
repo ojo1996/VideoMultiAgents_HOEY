@@ -78,7 +78,7 @@ def mas_result_to_dict(result_data):
     return log_dict
 
 
-def execute_multi_agent():
+def execute_multi_agent(use_summary_info):
     members = ["agent1", "agent2", "agent3", "organizer"]
     system_prompt = (
         "You are a supervisor who has been tasked with answering a quiz regarding the video. Work with the following members {members} and provide the most promising answer.\n"
@@ -121,15 +121,15 @@ def execute_multi_agent():
     # print ("****************************************")
     # print (create_question_sentence(target_question_data))
 
-    agent1_prompt = create_stage2_agent_prompt(target_question_data, "You are an expert video analyzer.", shuffle_questions=False)
+    agent1_prompt = create_stage2_agent_prompt(target_question_data, "You are an expert video analyzer.", shuffle_questions=False, use_summary_info=use_summary_info)
     agent1 = create_agent(llm_openai, [analyze_video_gpt4o], system_prompt=agent1_prompt)
     agent1_node = functools.partial(agent_node, agent=agent1, name="agent1")
 
-    agent2_prompt = create_stage2_agent_prompt(target_question_data, "You are an expert video analyzer.", shuffle_questions=False)
+    agent2_prompt = create_stage2_agent_prompt(target_question_data, "You are an expert video analyzer.", shuffle_questions=False, use_summary_info=use_summary_info)
     agent2 = create_agent(llm_openai, [retrieve_video_clip_captions], system_prompt=agent2_prompt)
     agent2_node = functools.partial(agent_node, agent=agent2, name="agent2")
 
-    agent3_prompt = create_stage2_agent_prompt(target_question_data, "You are an expert video analyzer.", shuffle_questions=False)
+    agent3_prompt = create_stage2_agent_prompt(target_question_data, "You are an expert video analyzer.", shuffle_questions=False, use_summary_info=use_summary_info)
     agent3 = create_agent(llm_openai, [retrieve_video_scene_graph], system_prompt=agent3_prompt)
     agent3_node = functools.partial(agent_node, agent=agent3, name="agent3")
 

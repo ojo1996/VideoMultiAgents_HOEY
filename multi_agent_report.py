@@ -71,14 +71,14 @@ def mas_result_to_dict(result_data):
         log_dict[message.name] = message.content
     return log_dict
 
-def execute_multi_agent():
+def execute_multi_agent(use_summary_info):
     # Load the question data from an environment variable
     target_question_data = json.loads(os.getenv("QA_JSON_STR"))
 
     # Create prompts for each agent
-    agent1_prompt    = create_agent_prompt(target_question_data, agent_type="video_expert")
-    agent2_prompt    = create_agent_prompt(target_question_data, agent_type="text_expert")
-    agent3_prompt    = create_agent_prompt(target_question_data, agent_type="graph_expert")
+    agent1_prompt    = create_agent_prompt(target_question_data, agent_type="video_expert", use_summary_info=use_summary_info)
+    agent2_prompt    = create_agent_prompt(target_question_data, agent_type="text_expert", use_summary_info=use_summary_info)
+    agent3_prompt    = create_agent_prompt(target_question_data, agent_type="graph_expert", use_summary_info=use_summary_info)
     organizer_prompt = create_organizer_prompt()
 
     # Create agents

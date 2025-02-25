@@ -43,7 +43,7 @@ def get_tools(modality):
     else:
         raise ValueError(f"Unknown modality: {modality}")
 
-def process_single_video(modality, agents, dataset, video_data):
+def process_single_video(modality, agents, dataset, use_summary_info, video_data):
     """
     Process a single video with tools initialized inside the worker.
     
@@ -65,11 +65,11 @@ def process_single_video(modality, agents, dataset, video_data):
             # Initialize tools inside the worker process
             tools = get_tools(modality)
             # Execute video analysis
-            result, agent_response, agent_prompts = execute_single_agent(tools)
+            result, agent_response, agent_prompts = execute_single_agent(tools, use_summary_info)
         elif agents.startswith("multi-report"):
-            result, agent_response, agent_prompts = multi_agent_report.execute_multi_agent()
+            result, agent_response, agent_prompts = multi_agent_report.execute_multi_agent(use_summary_info)
         elif agents.startswith("multi-star"):
-            result, agent_response, agent_prompts = multi_agent_star.execute_multi_agent()
+            result, agent_response, agent_prompts = multi_agent_star.execute_multi_agent(use_summary_info)
         # elif agents.startswith("multi-debate"):
         #     result, agent_response, agent_prompts = multi_agent_debate.execute_multi_agent()
 
@@ -108,6 +108,7 @@ def main():
     parser.add_argument('--dataset', type=str, help="Example: egoschema, nextqa, etc.")
     parser.add_argument('--modality', type=str, help="Example: video, text, graph, all.")
     parser.add_argument('--agents', type=str, help="Example: single, multi-star.")
+    parser.add_argument('--use_summary_info', type=bool, default=False, help="Use summary info.")
     parser.add_argument('--num_workers', type=int, default=None, 
                        help="Number of worker processes. Defaults to CPU count - 1")
     args = parser.parse_args()
@@ -124,7 +125,7 @@ def main():
     elif args.dataset == "nextqa":
         os.environ["QUESTION_FILE_PATH"] = f"data/nextqa/val_{args.agents}_{args.modality}.json"
         os.environ["GRAPH_DATA_PATH"] = "data/nextqa/nextqa_graph_captions_gpt4o.json"
-        os.environ["CAPTIONS_FILE"] = "data/nextqa/captions_gpt4o_question_guided.json"
+        os.environ["CAPTIONS_FILE"] = "data/nextqa/nextqa_llava1.5_captions.json"
         os.environ["SUMMARY_CACHE_JSON_PATH"] = "data/nextqa/nextqa_summary_cache_val.json"
         os.environ["IMAGES_DIR_PATH"] = "data/nextqa/frames_aligned/"
         os.environ["FRAME_NUM"] = "180"
@@ -150,7 +151,7 @@ def main():
     # Create process pool and process videos in parallel
     with Pool(num_workers) as pool:
         # Create a partial function with fixed arguments
-        process_func = partial(process_single_video, args.modality, args.agents, args.dataset)
+        process_func = partial(process_single_video, args.modality, args.agents, args.dataset, args.use_summary_info)
         
         # Process videos in parallel and collect results
         results = pool.map(process_func, unprocessed_videos)

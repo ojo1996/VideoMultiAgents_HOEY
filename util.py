@@ -185,7 +185,7 @@ def create_question_sentence(question_data:dict, shuffle_questions=False):
     return prompt
 
 
-def create_agent_prompt(question_data: dict, agent_type: Literal["text_expert", "video_expert", "graph_expert"] = "text_expert") -> str:
+def create_agent_prompt(question_data: dict, agent_type: Literal["text_expert", "video_expert", "graph_expert"] = "text_expert", use_summary_info=False) -> str:
     """
     Creates a prompt for a specific agent type with predefined instructions.
 
@@ -199,11 +199,12 @@ def create_agent_prompt(question_data: dict, agent_type: Literal["text_expert", 
     """
     prompt = create_question_sentence(question_data)
 
-    summary_info = json.loads(os.getenv("SUMMARY_INFO"))
-    # summary_info = json.loads("/root/VideoMultiAgents/nextqa_summary_cache.json")
-    prompt += "\n\n[Video Summary Information]\n"
-    prompt += "Entire Summary: \n" + summary_info["entire_summary"] + "\n\n"
-    prompt += "Detail Summaries: \n" + summary_info["detail_summaries"]
+    if use_summary_info:
+        summary_info = json.loads(os.getenv("SUMMARY_INFO"))
+        # summary_info = json.loads("/root/VideoMultiAgents/nextqa_summary_cache.json")
+        prompt += "\n\n[Video Summary Information]\n"
+        prompt += "Entire Summary: \n" + summary_info["entire_summary"] + "\n\n"
+        prompt += "Detail Summaries: \n" + summary_info["detail_summaries"]
 
     prompt += "\n\n[Instructions]\n"
     instructions = {
@@ -253,13 +254,14 @@ def create_organizer_prompt():
     return organizer_prompt
 
 
-def create_stage2_agent_prompt(question_data:dict, generated_expert_prompt="", shuffle_questions=False):
+def create_stage2_agent_prompt(question_data:dict, generated_expert_prompt="", shuffle_questions=False, use_summary_info=False):
     prompt = create_question_sentence(question_data, shuffle_questions)
 
-    summary_info = json.loads(os.getenv("SUMMARY_INFO"))
-    prompt += "\n\n[Video Summary Information]\n"
-    prompt += "Entire Summary: \n" + summary_info["entire_summary"] + "\n\n"
-    prompt += "Detail Summaries: \n" + summary_info["detail_summaries"]
+    if use_summary_info:
+        summary_info = json.loads(os.getenv("SUMMARY_INFO"))
+        prompt += "\n\n[Video Summary Information]\n"
+        prompt += "Entire Summary: \n" + summary_info["entire_summary"] + "\n\n"
+        prompt += "Detail Summaries: \n" + summary_info["detail_summaries"]
     
     prompt += "\n\n[Instructions]\n"
     # prompt += "Understand the question and options well and focus on the differences between the options.\n"

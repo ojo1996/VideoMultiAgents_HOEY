@@ -35,7 +35,7 @@ def create_agent(llm, tools: list, system_prompt: str):
     executor = AgentExecutor(agent=agent, tools=tools, return_intermediate_steps=True)
     return executor
 
-def execute_single_agent(tools):
+def execute_single_agent(tools, use_summary_info):
     """
     Execute the VideoQuestionAnswering task using a single agent.
 
@@ -52,10 +52,11 @@ def execute_single_agent(tools):
         "with 'FINISH' followed by your final answer."
     )
 
-    summary_info = json.loads(os.getenv("SUMMARY_INFO"))
-    system_prompt += "\n\n[Video Summary Information]\n"
-    system_prompt += "Entire Summary: \n" + summary_info["entire_summary"] + "\n\n"
-    system_prompt += "Detail Summaries: \n" + summary_info["detail_summaries"]
+    if use_summary_info:
+        summary_info = json.loads(os.getenv("SUMMARY_INFO"))
+        system_prompt += "\n\n[Video Summary Information]\n"
+        system_prompt += "Entire Summary: \n" + summary_info["entire_summary"] + "\n\n"
+        system_prompt += "Detail Summaries: \n" + summary_info["detail_summaries"]
 
     # Generate the question sentence using the provided utility (do not include this in the system prompt)
     question_sentence = create_question_sentence(target_question_data)
