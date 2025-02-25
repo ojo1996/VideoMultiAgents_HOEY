@@ -278,7 +278,8 @@ def create_stage2_organizer_prompt():
             "Your task is to summarize the opinions of three Agents, determine whether further discussion is necessary, and, if the discussion is already concluded, provide the final decision.\n"
             "Your output should be one of the following options: OptionA, OptionB, OptionC, OptionD, OptionE, along with an explanation.\n"
             "The correct answer is always within these 5 options.\n"
-            "Base your decision primarily on a majority vote. If the opinions of the three Agents are divided, initiate a follow-up discussion to reach a consensus.\n\n"
+            # "Base your decision primarily on a majority vote. If the opinions of the three Agents are divided, initiate a follow-up discussion to reach a consensus.\n\n"
+            "Base your decision on a comprehensive analysis of each agent's opinions and the intermediate information provided. Evaluate the reasoning behind each response to determine whether the evidence is sufficient for a final decision or if further discussion is needed to clarify uncertainties.\n\n"
 
             "[Output Format]\n"
             "Your response should be formatted as follows:\n"
