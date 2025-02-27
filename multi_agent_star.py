@@ -14,6 +14,7 @@ from langchain_openai import ChatOpenAI
 
 from tools.retrieve_video_clip_captions import retrieve_video_clip_captions
 from tools.analyze_video_gpt4o import analyze_video_gpt4o
+from tools.analyze_video_gemini import analyze_video_gemini
 from tools.retrieve_video_scene_graph import retrieve_video_scene_graph
 from tools.dummy_tool import dummy_tool
 from util import post_process, create_stage2_agent_prompt, create_stage2_organizer_prompt, create_question_sentence, prepare_intermediate_steps
@@ -122,7 +123,7 @@ def execute_multi_agent(use_summary_info):
     # print (create_question_sentence(target_question_data))
 
     agent1_prompt = create_stage2_agent_prompt(target_question_data, "You are an expert video analyzer.", shuffle_questions=False, use_summary_info=use_summary_info)
-    agent1 = create_agent(llm_openai, [analyze_video_gpt4o], system_prompt=agent1_prompt)
+    agent1 = create_agent(llm_openai, [analyze_video_gemini], system_prompt=agent1_prompt)
     agent1_node = functools.partial(agent_node, agent=agent1, name="agent1")
 
     agent2_prompt = create_stage2_agent_prompt(target_question_data, "You are an expert video analyzer.", shuffle_questions=False, use_summary_info=use_summary_info)

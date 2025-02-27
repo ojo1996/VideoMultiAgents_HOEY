@@ -82,6 +82,88 @@ def ask_gpt4_omni(openai_api_key="", prompt_text="", temperature=0.0, image_dir=
     return response.choices[0].message.content
 
 
+# @retry(tries=3, delay=3)
+def ask_gemini(prompt_text: str, video_path: str = "", temperature=0.7) -> str:
+    """
+    Send a prompt to Gemini 2.0 for video analysis.
+
+    Args:
+        prompt_text (str): The prompt text to send to Gemini
+        video_path (str): Path to the video file to analyze
+
+    Returns:
+        str: Gemini's response text
+    """
+    # Initialize Gemini client
+    client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+    
+    # Use Gemini 2.0 Flash model optimized for video
+    model_name = "gemini-2.0-flash"
+
+    generation_config = types.GenerateContentConfig(
+        max_output_tokens=3000,
+        temperature=temperature,
+        seed=42,
+        safety_settings= [
+          types.SafetySetting(
+              category='HARM_CATEGORY_HATE_SPEECH',
+              threshold='BLOCK_NONE'
+          ),
+          types.SafetySetting(
+              category='HARM_CATEGORY_HARASSMENT',
+              threshold='BLOCK_NONE'
+          ),
+          types.SafetySetting(
+              category='HARM_CATEGORY_SEXUALLY_EXPLICIT',
+              threshold='BLOCK_NONE'
+          ),
+          types.SafetySetting(
+              category='HARM_CATEGORY_DANGEROUS_CONTENT',
+              threshold='BLOCK_NONE'
+          ),
+          types.SafetySetting(
+              category='HARM_CATEGORY_CIVIC_INTEGRITY',
+              threshold='BLOCK_NONE'
+          ),
+      ]
+    )
+
+    if video_path:
+        # Upload video file to Gemini
+        video_file = client.files.upload(file=video_path)
+
+        # Wait for video processing to complete
+        while video_file.state == "PROCESSING":
+            print('Waiting for video to be processed.')
+            time.sleep(10)
+            video_file = client.files.get(name=video_file.name)
+
+        if video_file.state == "FAILED":
+            raise ValueError(video_file.state)
+        print(f'Video processing complete: {video_file.uri}')
+
+        # Generate response with video
+        response = client.models.generate_content(
+            model=model_name,
+            contents=[
+                video_file,
+                prompt_text,
+            ],
+            config=generation_config
+        )
+    else:
+        # Generate response without video
+        response = client.models.generate_content(
+            model=model_name,
+            contents=[prompt_text],
+            config=generation_config
+        )
+
+    print(f"ask_gemini: prompt_tokens={response.usage_metadata.prompt_token_count}, completion_tokens={response.usage_metadata.candidates_token_count}, total_tokens={response.usage_metadata.total_token_count}")
+
+    return response.text
+
+
 def create_mas_stage1_prompt(json_data):
     try:
         question = f"Question: {json_data['question']}"

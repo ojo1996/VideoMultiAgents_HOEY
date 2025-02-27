@@ -19,6 +19,7 @@ import traceback
 # Import required tools for video analysis
 from tools.retrieve_video_clip_captions import retrieve_video_clip_captions
 from tools.analyze_video_gpt4o import analyze_video_gpt4o
+from tools.analyze_video_gemini import analyze_video_gemini
 from tools.retrieve_video_scene_graph import retrieve_video_scene_graph
 from tools.analyze_all_gpt4o import analyze_all_gpt4o
 
@@ -33,7 +34,7 @@ def get_tools(modality):
         List of tool functions to use for processing
     """
     if modality == "video":
-        return [analyze_video_gpt4o]
+        return [analyze_video_gemini]
     elif modality == "text":
         return [retrieve_video_clip_captions]
     elif modality == "graph":
@@ -66,9 +67,9 @@ def process_single_video(modality, agents, dataset, use_summary_info, video_data
             tools = get_tools(modality)
             # Execute video analysis
             result, agent_response, agent_prompts = execute_single_agent(tools, use_summary_info)
-        elif agents.startswith("multi-report"):
+        elif agents.startswith("multi_report"):
             result, agent_response, agent_prompts = multi_agent_report.execute_multi_agent(use_summary_info)
-        elif agents.startswith("multi-star"):
+        elif agents.startswith("multi_star"):
             result, agent_response, agent_prompts = multi_agent_star.execute_multi_agent(use_summary_info)
         # elif agents.startswith("multi-debate"):
         #     result, agent_response, agent_prompts = multi_agent_debate.execute_multi_agent()
@@ -125,9 +126,10 @@ def main():
     elif args.dataset == "nextqa":
         os.environ["QUESTION_FILE_PATH"] = f"data/nextqa/val_{args.agents}_{args.modality}.json"
         os.environ["GRAPH_DATA_PATH"] = "data/nextqa/nextqa_graph_captions_gpt4o.json"
-        os.environ["CAPTIONS_FILE"] = "data/nextqa/nextqa_llava1.5_captions.json"
+        os.environ["CAPTIONS_FILE"] = "data/nextqa/captions_gpt4o_question_guided.json"
         os.environ["SUMMARY_CACHE_JSON_PATH"] = "data/nextqa/nextqa_summary_cache_val.json"
         os.environ["IMAGES_DIR_PATH"] = "data/nextqa/frames_aligned/"
+        os.environ["VIDEO_DIR_PATH"] = "/simurgh/u/akhatua/VideoMultiAgents/data/nextqa/NExTVideo"
         os.environ["FRAME_NUM"] = "180"
     elif args.dataset == "momaqa":
         os.environ["QUESTION_FILE_PATH"] = "/root/VideoMultiAgents/momaqa_test_anno.json"

@@ -52,7 +52,19 @@ multi_star_counts = defaultdict(lambda: {'correct': 0, 'total': 0})
 modality_data = {}
 all_questions = set()
 for modality in ['text', 'graph', 'video']:
-    filename = f'data/nextqa/val_single_{modality}.json'
+    if modality == 'text':
+        # m = 'text_llava1.5_no_summaries'
+        # m = 'text_no_summaries'
+        m = 'text_with_summaries'
+    elif modality == 'graph':
+        # m = 'graph_no_summaries'
+        m = 'graph_gpt4o_with_summaries'
+    elif modality == 'video':
+        m = 'video_gemini_with_summaries'
+
+    # m = modality
+
+    filename = f'data/nextqa/val_single_{m}.json'
     with open(filename, 'r') as f:
         data = json.load(f)
     # Get only questions with predictions
@@ -64,10 +76,10 @@ for modality in ['text', 'graph', 'video']:
         all_questions.intersection_update(answered_questions.keys())
 
 # Verify we have exactly 1000 common questions
-assert len(all_questions) == 1000, f"Expected 1000 common questions, got {len(all_questions)}"
+# assert len(all_questions) == 1000, f"Expected 1000 common questions, got {len(all_questions)}"
 
 # Load multi-star data
-with open('data/nextqa/val_multi_star_all_intermediate.json', 'r') as f:
+with open('data/nextqa/val_multi_star_all_gemini_with_summaries.json', 'r') as f:
     multi_star_data = json.load(f)
 
 # Process only the common questions
@@ -76,7 +88,7 @@ for qid in all_questions:
     truth = modality_data['text'][qid]['truth']  # Truth is same across modalities
     
     # Get all predictions for majority vote
-    predictions = [modality_data[modality][qid]['pred'] for modality in ['text', 'graph', 'video']]
+    predictions = [modality_data[modality][qid]['pred'] for modality in ['text', 'video', 'graph']]
     majority_pred = Counter(predictions).most_common(1)[0][0]
     
     # Update majority counts
