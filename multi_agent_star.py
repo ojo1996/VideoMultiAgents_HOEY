@@ -17,7 +17,7 @@ from tools.analyze_video_gpt4o import analyze_video_gpt4o
 from tools.analyze_video_gemini import analyze_video_gemini
 from tools.retrieve_video_scene_graph import retrieve_video_scene_graph
 from tools.dummy_tool import dummy_tool
-from util import post_process, create_stage2_agent_prompt, create_stage2_organizer_prompt, create_question_sentence, prepare_intermediate_steps
+from util import post_process, create_stage2_agent_prompt, create_star_organizer_prompt, create_question_sentence, prepare_intermediate_steps
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -74,69 +74,90 @@ class AgentState(TypedDict):
 
 def mas_result_to_dict(result_data):
     log_dict = {}
+    
     for message in result_data["messages"]:
-        log_dict[message.name] = message.content
+        base_name = message.name
+        # Create a unique name if needed
+        if base_name in log_dict:
+            index = 2
+            new_name = f"{base_name}-{index}"
+            while new_name in log_dict:
+                index += 1
+                new_name = f"{base_name}-{index}"
+            log_dict[new_name] = message.content
+        else:
+            log_dict[base_name] = message.content
+    
     return log_dict
 
 
 def execute_multi_agent(use_summary_info):
-    members = ["agent1", "agent2", "agent3", "organizer"]
-    system_prompt = (
-        "You are a supervisor who has been tasked with answering a quiz regarding the video. Work with the following members {members} and provide the most promising answer.\n"
-        "Respond with FINISH along with your final answer. Each agent has one opportunity to speak, and the organizer should make the final decision."
-        )
-
-    options = ["FINISH"] + members
-    function_def = {
-        "name": "route",
-        "description": "Select the next role.",
-        "parameters": {
-            "title": "routeSchema",
-            "type": "object",
-            "properties": {"next": {"title": "Next", "anyOf": [{"enum": options}]}},
-            "required": ["next"],
-        },
-    }
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            SystemMessage(content=system_prompt),
-            MessagesPlaceholder(variable_name="messages"),
-            SystemMessage(
-                content="Given the conversation above, who should act next? Or should we FINISH? Select one of: {options} If you want to finish the conversation, type 'FINISH' and Final Answer.",
-                additional_kwargs={"__openai_role__": "developer"}
-            ),
-        ]
-    ).partial(options=str(options), members=", ".join(members))
-
-    supervisor_chain = (
-        prompt
-        | llm.bind_functions(functions=[function_def], function_call="route")
-        | JsonOutputFunctionsParser()
-    )
-
-    # Load taget question
+    # Load target question
     target_question_data = json.loads(os.getenv("QA_JSON_STR"))
 
-    # print ("****************************************")
-    # print (" Next Question: {}".format(os.getenv("VIDEO_FILE_NAME")))
-    # print ("****************************************")
-    # print (create_question_sentence(target_question_data))
-
+    # Create agents with their prompts
     agent1_prompt = create_stage2_agent_prompt(target_question_data, "You are an expert video analyzer.", shuffle_questions=False, use_summary_info=use_summary_info)
     agent1 = create_agent(llm_openai, [analyze_video_gemini], system_prompt=agent1_prompt)
     agent1_node = functools.partial(agent_node, agent=agent1, name="agent1")
 
-    agent2_prompt = create_stage2_agent_prompt(target_question_data, "You are an expert video analyzer.", shuffle_questions=False, use_summary_info=use_summary_info)
+    agent2_prompt = create_stage2_agent_prompt(target_question_data, "You are an expert video analyzer focusing on video captions.", shuffle_questions=False, use_summary_info=use_summary_info)
     agent2 = create_agent(llm_openai, [retrieve_video_clip_captions], system_prompt=agent2_prompt)
     agent2_node = functools.partial(agent_node, agent=agent2, name="agent2")
 
-    agent3_prompt = create_stage2_agent_prompt(target_question_data, "You are an expert video analyzer.", shuffle_questions=False, use_summary_info=use_summary_info)
+    agent3_prompt = create_stage2_agent_prompt(target_question_data, "You are an expert video analyzer focusing on video scene graphs.", shuffle_questions=False, use_summary_info=use_summary_info)
     agent3 = create_agent(llm_openai, [retrieve_video_scene_graph], system_prompt=agent3_prompt)
     agent3_node = functools.partial(agent_node, agent=agent3, name="agent3")
 
-    organizer_prompt = create_stage2_organizer_prompt()
-    organizer_agent = create_agent(llm_openai, [dummy_tool], system_prompt=organizer_prompt)
-    organizer_node = functools.partial(agent_node, agent=organizer_agent, name="organizer")
+    # Create organizer with a central role
+    organizer_prompt = create_star_organizer_prompt()
+    
+    # Organizer options now include END to directly finish the process
+    organizer_options = ["agent1", "agent2", "agent3", "FINAL_ANSWER"]
+    organizer_function_def = {
+        "name": "route",
+        "description": "Select the next agent to speak or provide final answer.",
+        "parameters": {
+            "title": "routeSchema",
+            "type": "object",
+            "properties": {
+                "next": {"title": "Next", "anyOf": [{"enum": organizer_options}]},
+                "comment": {"title": "Comment", "type": "string", "description": "Your comments on the previous agent's response"}
+            },
+            "required": ["next", "comment"],
+        },
+    }
+    
+    # Define organizer node that will decide which agent speaks next
+    def organizer_node(state):
+        print ("****************************************")
+        print(" Executing organizer node!")
+        print ("****************************************")
+        
+        # Process the conversation so far
+        organizer_prompt_template = ChatPromptTemplate.from_messages(
+            [
+                SystemMessage(content=organizer_prompt),
+                MessagesPlaceholder(variable_name="messages"),
+                SystemMessage(
+                    content="Based on the conversation so far, provide your comments and decide which agent should speak next, or if we should provide the FINAL_ANSWER.",
+                    additional_kwargs={"__openai_role__": "developer"}
+                ),
+            ]
+        ).partial(options=str(organizer_options))
+        
+        organizer_chain = (
+            organizer_prompt_template
+            | llm_openai.bind_functions(functions=[organizer_function_def], function_call="route")
+            | JsonOutputFunctionsParser()
+        )
+        
+        result = organizer_chain.invoke(state)
+        
+        # Add organizer's comments to the conversation
+        return {
+            "messages": [HumanMessage(content=result["comment"], name="organizer")],
+            "next": result["next"]
+        }
 
     # for debugging
     agent_prompts = {
@@ -163,15 +184,21 @@ def execute_multi_agent(use_summary_info):
     workflow.add_node("agent2", agent2_node)
     workflow.add_node("agent3", agent3_node)
     workflow.add_node("organizer", organizer_node)
-    workflow.add_node("supervisor", supervisor_chain)
 
-    # Add edges to the workflow
-    for member in members:
-        workflow.add_edge(member, "supervisor")
-    conditional_map = {k: k for k in members}
-    conditional_map["FINISH"] = END
-    workflow.add_conditional_edges("supervisor", lambda x: x["next"], conditional_map)
-    workflow.set_entry_point("supervisor")
+    # Add edges to the workflow - organizer is central
+    workflow.add_edge("agent1", "organizer")
+    workflow.add_edge("agent2", "organizer")
+    workflow.add_edge("agent3", "organizer")
+    
+    # Organizer decides which agent speaks next or when to finish
+    workflow.add_conditional_edges(
+        "organizer",
+        lambda x: x["next"],
+        {"agent1": "agent1", "agent2": "agent2", "agent3": "agent3", "FINAL_ANSWER": END}
+    )
+    
+    # Set entry point to organizer
+    workflow.set_entry_point("organizer")
     graph = workflow.compile()
 
     # Execute the graph
@@ -179,8 +206,10 @@ def execute_multi_agent(use_summary_info):
     print ("******** Multiagent input_message **********")
     print (input_message)
     print ("****************************************")
+    
+    # Initialize with the question and set next to organizer
     agents_result = graph.invoke(
-        {"messages": [HumanMessage(content=input_message, name="system")], "next": "agent1"},
+        {"messages": [HumanMessage(content=input_message, name="system")]},
         {"recursion_limit": 20, "stream": False}
     )
 
@@ -190,7 +219,7 @@ def execute_multi_agent(use_summary_info):
         print ("Error: The result is -1. So, retry the stage2.")
         print ("***********************************************************")
         time.sleep(1)
-        return execute_multi_agent()
+        return execute_multi_agent(use_summary_info)
 
     agents_result_dict = mas_result_to_dict(agents_result)
 

@@ -396,45 +396,38 @@ def create_stage2_agent_prompt(question_data:dict, generated_expert_prompt="", s
         prompt += "Detail Summaries: \n" + summary_info["detail_summaries"]
     
     prompt += "\n\n[Instructions]\n"
-    # prompt += "Understand the question and options well and focus on the differences between the options.\n"
-    # prompt += "Exclude options that contain unnecessary embellishments, such as subjective adverbs or clauses that cannot be objectively determined, and consider only the remaining options.\n"
     prompt += generated_expert_prompt
-    prompt += "\nBe sure to call the Analyze video tool."
     return prompt
 
 
-def create_stage2_organizer_prompt():
-
+def create_star_organizer_prompt():
+    shared_organizer_prompt = (
+        "[Instructions]\n"
+        "You are the organizer of a discussion between three expert agents analyzing a video. "
+        "Your task is to coordinate the discussion by deciding which agent should speak next or when to conclude with a final answer.\n\n"
+        
+        "The three agents are:\n"
+        "- agent1: An expert video analyzer who focuses on video question answering\n"
+        "- agent2: An expert video analyzer who focuses on video captions\n"
+        "- agent3: An expert video analyzer who focuses on video scene graphs\n\n"
+        
+        "After each agent speaks, you must decide whether to:\n"
+        "1. Ask a specific agent to provide more information or address a particular aspect (select 'agent1', 'agent2', or 'agent3')\n"
+        "2. Conclude the discussion and provide a final answer (select 'FINAL_ANSWER')\n\n"
+    )
     if os.getenv("DATASET") == "egoschema" or os.getenv("DATASET") == "nextqa":
         organizer_prompt = (
-            "[Instructions]\n"
-            "You are the organizer of a discussion. "
-            "Your task is to summarize the opinions of three Agents, determine whether further discussion is necessary, and, if the discussion is already concluded, provide the final decision.\n"
-            "Your output should be one of the following options: OptionA, OptionB, OptionC, OptionD, OptionE, along with an explanation.\n"
-            "The correct answer is always within these 5 options.\n"
-            # "Base your decision primarily on a majority vote. If the opinions of the three Agents are divided, initiate a follow-up discussion to reach a consensus.\n\n"
-            "Base your decision on a comprehensive analysis of each agent's opinions and the intermediate information provided. Evaluate the reasoning behind each response to determine whether the evidence is sufficient for a final decision or if further discussion is needed to clarify uncertainties.\n\n"
-
-            "[Output Format]\n"
-            "Your response should be formatted as follows:\n"
-            "- Additional Discussion Needed: [YES/NO]\n"
-            "- Pred: OptionX (If additional discussion is needed, provide the current leading candidate.)\n"
-            "- Explanation: Provide a detailed explanation, including reasons for requiring additional discussion or the reasoning behind the final decision."
+            shared_organizer_prompt +
+            "When concluding the discussion, your final answer should be one of the following options: OptionA, OptionB, OptionC, OptionD, OptionE, along with an explanation.\n"
+            "Base your decision on a comprehensive analysis of each agent's opinions and the information provided. Evaluate the reasoning behind each response to determine whether the evidence is sufficient for a final decision or if further input is needed from a specific agent.\n"
+            "When selecting an agent to speak next, provide clear guidance on what specific information you're seeking from them."
         )
     elif os.getenv("DATASET") == "momaqa":
         organizer_prompt = (
-            "[Instructions]\n"
-            "You are the organizer of a discussion. "
-            "Your task is to summarize the opinions of three Agents, determine whether further discussion is necessary, and, if the discussion is already concluded, provide the final answer.\n"
-            "Your output should be a concise and clear answer to the question, along with an explanation.\n"
-            "Base your decision primarily on a majority vote. If the opinions of the three Agents are divided, initiate a follow-up discussion to reach a consensus.\n\n"
-
-            "[Output Format]\n"
-            "Your response should be formatted as follows:\n"
-            "Note: If any part of the output is a number, represent it as a digit (e.g., '1') rather than as a word (e.g., 'one').\n"
-            "- Additional Discussion Needed: [YES/NO]\n"
-            "- Pred: [Your final answer, stated as a single word or phrase (e.g., 'basketball player', 'preparing food')]\n"
-            "- Explanation: Provide a detailed explanation, including reasons for requiring additional discussion or the reasoning behind the final answer."
+            shared_organizer_prompt +
+            "When concluding the discussion, your final answer should be a concise and clear answer to the question, along with an explanation.\n"
+            "Stated the final answer as a single word or phrase (e.g., 'basketball player', 'preparing food'). If any part of the output is a number, represent it as a digit (e.g., '1') rather than as a word (e.g., 'one').\n"
+            "When selecting an agent to speak next, provide clear guidance on what specific information you're seeking from them."
         )
 
     return organizer_prompt
