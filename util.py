@@ -9,11 +9,12 @@ import json
 import random
 import glob
 import base64
-import portalocker
+from filelock import FileLock
 from mimetypes import guess_type
 import numpy as np
 from typing import Literal
-
+from google import genai
+from google.genai import types
 
 # Function to encode a local image into data URL
 def local_image_to_data_url(image_path):
@@ -127,10 +128,55 @@ def ask_gemini(prompt_text: str, video_path: str = "", temperature=0.7) -> str:
           ),
       ]
     )
-
     if video_path:
-        # Upload video file to Gemini
-        video_file = client.files.upload(file=video_path)
+        # Check if video is already in cache
+        cache_file_path = f"gemini_video_cache.json"
+        video_key = os.path.basename(os.path.splitext(video_path)[0])
+        video_file_name = None
+        
+        # Use FileLock to safely read from cache
+        lock = FileLock(f"{cache_file_path}.lock")
+        
+        with lock:
+            # Load cache if exists
+            if os.path.exists(cache_file_path):
+                try:
+                    with open(cache_file_path, 'r') as f:
+                        video_cache = json.load(f)
+                    if video_key in video_cache:
+                        video_file_name = video_cache[video_key]
+                except json.JSONDecodeError:
+                    video_cache = {}
+            else:
+                video_cache = {}
+        
+        # Try to get existing file or upload new one
+        if video_file_name:
+            try:
+                video_file = client.files.get(name=video_file_name)
+                print(f'Found cached video: {video_file.name}')
+            except Exception as e:
+                print(f'Error retrieving cached video: {e}')
+                video_file_name = None
+        
+        if not video_file_name:
+            # Upload video file to Gemini
+            video_file = client.files.upload(file=video_path)
+            
+            # Update cache with new mapping using FileLock
+            with lock:
+                # Re-read the cache in case it was modified by another process
+                if os.path.exists(cache_file_path):
+                    try:
+                        with open(cache_file_path, 'r') as f:
+                            video_cache = json.load(f)
+                    except json.JSONDecodeError:
+                        video_cache = {}
+                
+                video_cache[video_key] = video_file.name
+                with open(cache_file_path, 'w') as f:
+                    json.dump(video_cache, f)
+                print(f'Added video to cache: {video_key} -> {video_file.name}')
 
         # Wait for video processing to complete
         while video_file.state == "PROCESSING":
