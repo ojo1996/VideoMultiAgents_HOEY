@@ -236,6 +236,7 @@ def agent3_node(state):
         prompt += create_question_sentence(target_question_data, False)
         state["agent_prompts"]["agent3_round2"] = prompt
     # print("agent3 prompt:", prompt)
+    
     agent = create_agent(llm_openai, [retrieve_video_scene_graph],
                             system_prompt="You are an expert in scene-graph analysis for video.",
                             prompt=prompt)
