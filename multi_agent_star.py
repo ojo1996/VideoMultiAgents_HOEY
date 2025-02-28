@@ -69,13 +69,15 @@ def agent_node(state, agent, name):
     # Invoke the agent with the temporary state
     result = agent.invoke(agent_state)
 
-    # Extract tool results
-    intermediate_steps = prepare_intermediate_steps(result.get("intermediate_steps", []))
+    # # Extract tool results
+    # intermediate_steps = prepare_intermediate_steps(result.get("intermediate_steps", []))
 
-    # Combine output and intermediate steps
-    combined_output = f"Output:\n{result['output']}\n\nIntermediate Steps:\n{intermediate_steps}"
+    # # Combine output and intermediate steps
+    # combined_output = f"Output:\n{result['output']}\n\nIntermediate Steps:\n{intermediate_steps}"
 
-    return {"messages": [HumanMessage(content=combined_output, name=name)]}
+    # return {"messages": [HumanMessage(content=combined_output, name=name)]}
+
+    return {"messages": [HumanMessage(content=result["output"], name=name)]}
 
 
 class AgentState(TypedDict):
@@ -164,6 +166,15 @@ def execute_multi_agent(use_summary_info):
                 ),
             ]
         ).partial(options=str(organizer_options))
+
+        # Print the rendered prompt template for debugging
+        rendered_prompt = organizer_prompt_template.format_messages(messages=state["messages"])
+        print("************* Rendered Organizer Prompt **************")
+        for message in rendered_prompt:
+            print(f"Role: {message.type}")
+            print(f"Content: {message.content}")
+            print("---")
+        print("****************************************")
         
         organizer_chain = (
             organizer_prompt_template
