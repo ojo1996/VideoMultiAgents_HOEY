@@ -411,23 +411,24 @@ def create_star_organizer_prompt():
         "- agent2: An expert video analyzer who focuses on video captions\n"
         "- agent3: An expert video analyzer who focuses on video scene graphs\n\n"
         
-        "After each agent speaks, you must decide whether to:\n"
-        "1. Ask a specific agent to provide more information or address a particular aspect (select 'agent1', 'agent2', or 'agent3')\n"
-        "2. Conclude the discussion and provide a final answer (select 'FINAL_ANSWER')\n\n"
+        "After each agent speaks, you must provide a comment on the previous agent's response and then decide one of the following:\n"
+        "1. Ask a specific agent to provide more information or address a particular aspect (select 'agent1', 'agent2', or 'agent3').\n"
+        "2. Conclude the discussion and provide a final answer (select 'FINAL_ANSWER').\n\n"
+        "If you choose to ask another agent, you must specify guidance for that agent by telling it what to focus on or what specific information to look for.\n"
+        "Be directive about what information is needed or what aspects to investigate. Focus on requesting objective analysis rather than suggesting specific conclusions. Ask for information or analysis without implying expected outcomes.\n"
+        "When agents disagree with each other, you must ask them to look for evidence for the opposing side, rather than reaffirming their own opinion.\n\n"
     )
     if os.getenv("DATASET") == "egoschema" or os.getenv("DATASET") == "nextqa":
         organizer_prompt = (
             shared_organizer_prompt +
             "When concluding the discussion, your final answer should be one of the following options: OptionA, OptionB, OptionC, OptionD, OptionE, along with an explanation.\n"
-            "Base your decision on a comprehensive analysis of each agent's opinions and the information provided. Evaluate the reasoning behind each response to determine whether the evidence is sufficient for a final decision or if further input is needed from a specific agent.\n"
-            "When selecting an agent to speak next, provide clear guidance on what specific information you're seeking from them."
+            "Base your decision on a comprehensive analysis of each agent's opinions and the information provided. Evaluate the reasoning behind each response to determine whether the evidence is sufficient for a final decision or if further input is needed from a specific agent."
         )
     elif os.getenv("DATASET") == "momaqa":
         organizer_prompt = (
             shared_organizer_prompt +
             "When concluding the discussion, your final answer should be a concise and clear answer to the question, along with an explanation.\n"
-            "Stated the final answer as a single word or phrase (e.g., 'basketball player', 'preparing food'). If any part of the output is a number, represent it as a digit (e.g., '1') rather than as a word (e.g., 'one').\n"
-            "When selecting an agent to speak next, provide clear guidance on what specific information you're seeking from them."
+            "Stated the final answer as a single word or phrase (e.g., 'basketball player', 'preparing food'). If any part of the output is a number, represent it as a digit (e.g., '1') rather than as a word (e.g., 'one')."
         )
 
     return organizer_prompt

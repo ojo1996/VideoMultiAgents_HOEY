@@ -13,6 +13,7 @@ from util import read_json_file
 from single_agent import execute_single_agent
 import multi_agent_star
 import multi_agent_report
+import multi_agent_report_star
 # import multi_agent_debate
 import traceback
 
@@ -60,13 +61,14 @@ def process_single_video(modality, agents, dataset, use_summary_info, video_data
 
         # Set environment variables for this process
         set_environment_variables(dataset, video_id, json_data)
-        
 
         if agents == "single":
             # Initialize tools inside the worker process
             tools = get_tools(modality)
             # Execute video analysis
             result, agent_response, agent_prompts = execute_single_agent(tools, use_summary_info)
+        elif agents.startswith("multi_report_star"):
+            result, agent_response, agent_prompts = multi_agent_report_star.execute_multi_agent(use_summary_info)
         elif agents.startswith("multi_report"):
             result, agent_response, agent_prompts = multi_agent_report.execute_multi_agent(use_summary_info)
         elif agents.startswith("multi_star"):
@@ -117,12 +119,13 @@ def main():
     # Set dataset-specific environment variables
     os.environ["DATASET"] = args.dataset
     if args.dataset == "egoschema":
-        os.environ["QUESTION_FILE_PATH"] = "/root/VideoMultiAgents/egoschema_fullset_anno.json"
-        os.environ["CAPTIONS_FILE"] = "/root/VideoMultiAgents/egoschema_lavila_captions.json"
-        os.environ["SUMMARY_CACHE_JSON_PATH"] = "/root/VideoMultiAgents/egoschema_summary_cache.json"
-        os.environ["VIDEOTREE_RESULTS_PATH"] = "/root/VideoMultiAgents/egoschema_videotree_result.json"
-        os.environ["IMAGES_DIR_PATH"] = "/root/nas_Ego4D/egoschema/images"
-        os.environ["FRAME_NUM"] = "90"
+        os.environ["QUESTION_FILE_PATH"] = f"data/egoschema/subset_{args.agents}_{args.modality}.json"
+        os.environ["CAPTIONS_FILE"] = "data/egoschema/egoschema_captions_gpt4o_caption_guided.json"
+        os.environ["GRAPH_DATA_PATH"] = "data/egoschema/egoschema_graph_captions.json"
+        os.environ["SUMMARY_CACHE_JSON_PATH"] = "data/egoschema/egoschema_summary_cache.json"
+        os.environ["VIDEOTREE_RESULTS_PATH"] = "data/egoschema/egoschema_videotree_result.json"
+        os.environ["VIDEO_DIR_PATH"] = "/simurgh/u/akhatua/VideoMultiAgents/data/egoschema"
+        os.environ["FRAME_NUM"] = "180"
     elif args.dataset == "nextqa":
         os.environ["QUESTION_FILE_PATH"] = f"data/nextqa/val_{args.agents}_{args.modality}.json"
         os.environ["GRAPH_DATA_PATH"] = "data/nextqa/nextqa_graph_captions_gpt4o.json"
