@@ -28,12 +28,16 @@ def analyze_video_gemini(gpt_prompt:str) -> str:
 
     video_file_name = os.getenv("VIDEO_FILE_NAME")
     video_dir       = os.getenv("VIDEO_DIR_PATH")
+    if os.getenv("DATASET") == "nextqa":
+        video_path = f'{video_dir}/{video_file_name.replace("-", "/")}.mp4'
+    else:
+        video_path = f'{video_dir}/{video_file_name}.mp4'
 
     print ("Called the tool of analyze_video_gemini.")
 
     result = ask_gemini(
                 prompt_text    = gpt_prompt,
-                video_path      = f'{video_dir}/{video_file_name.replace("-", "/")}.mp4',
+                video_path      = video_path,
                 temperature    = 0.7,
             )
     print ("result: ", result)
