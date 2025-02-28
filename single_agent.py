@@ -47,9 +47,10 @@ def execute_single_agent(tools, use_summary_info):
 
     # Create a system prompt that outlines the task instructions only
     system_prompt = (
-        "Your task is VideoQuestionAnswering. You must analyze the video using available tools and choose "
-        "the most plausible answer among the five options provided. Think step by step and eventually respond "
-        "with 'FINISH' followed by your final answer."
+        "Your task is to perform Video Question Answering. Analyze the video using the available tools, "
+        "carefully reasoning through each step. Then, select the most plausible answer from the five given options. "
+        "Finally, respond with 'FINISH' followed by your final answer, which should be one of the following: "
+        "'Option A', 'Option B', 'Option C', 'Option D', or 'Option E'."
     )
 
     if use_summary_info:
