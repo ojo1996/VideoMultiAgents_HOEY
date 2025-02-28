@@ -516,7 +516,7 @@ plt.grid(True, axis='y', alpha=0.3)
 def add_labels(x_pos, heights, width):
     for i, height in enumerate(heights):
         if height > 1:  # Only add label if segment is at least 1%
-            plt.text(x_pos[i], height, f'{int(height)}%', 
+            plt.text(x_pos[i], height, f'{round(height, 1)}', 
                     ha='center', va='bottom')
 
 # Add labels for all-agree correct and incorrect
@@ -524,20 +524,20 @@ for i in range(len(x)):
     # All agree correct
     if all_agree_correct_percentages[i] > 1:
         plt.text(x[i] - width, all_agree_correct_percentages[i]/2, 
-                f'{int(all_agree_correct_percentages[i])}%', 
+                f'{round(all_agree_correct_percentages[i], 1)}', 
                 ha='center', va='center', fontsize=12, color='white')
     
     # All agree incorrect
     if all_agree_incorrect_percentages[i] > 1:
         mid_point = all_agree_correct_percentages[i] + all_agree_incorrect_percentages[i]/2
         plt.text(x[i] - width, mid_point, 
-                f'{int(all_agree_incorrect_percentages[i])}%', 
+                f'{round(all_agree_incorrect_percentages[i], 1)}', 
                 ha='center', va='center', fontsize=12)
     
     # Total all_agree percentage
     total_all_agree = all_agree_correct_percentages[i] + all_agree_incorrect_percentages[i]
     if total_all_agree > 1:
-        plt.text(x[i] - width, total_all_agree, f'{int(total_all_agree)}%',
+        plt.text(x[i] - width, total_all_agree, f'{round(total_all_agree, 1)}',
                 ha='center', va='bottom', fontsize=12)
 
 # Add labels for all-disagree segments
@@ -545,35 +545,35 @@ for i in range(len(x)):
     # Video correct
     if all_disagree_video_correct_percentages[i] >= 2:
         plt.text(x[i] + width, all_disagree_video_correct_percentages[i]/2, 
-                f'{int(all_disagree_video_correct_percentages[i])}%', 
+                f'{round(all_disagree_video_correct_percentages[i], 1)}', 
                 ha='center', va='center', fontsize=12, color='white')
     
     # Text correct
     if all_disagree_text_correct_percentages[i] >= 2:
         mid_point = all_disagree_video_correct_percentages[i] + all_disagree_text_correct_percentages[i]/2
         plt.text(x[i] + width, mid_point, 
-                f'{int(all_disagree_text_correct_percentages[i])}%', 
+                f'{round(all_disagree_text_correct_percentages[i], 1)}', 
                 ha='center', va='center', fontsize=12, color='white')
     
     # Graph correct
     if all_disagree_graph_correct_percentages[i] >= 2:
         mid_point = all_disagree_video_correct_percentages[i] + all_disagree_text_correct_percentages[i] + all_disagree_graph_correct_percentages[i]/2
         plt.text(x[i] + width, mid_point, 
-                f'{int(all_disagree_graph_correct_percentages[i])}%', 
+                f'{round(all_disagree_graph_correct_percentages[i], 1)}', 
                 ha='center', va='center', fontsize=12, color='white')
     
     # None correct
     if all_disagree_none_correct_percentages[i] >= 2:
         mid_point = all_disagree_video_correct_percentages[i] + all_disagree_text_correct_percentages[i] + all_disagree_graph_correct_percentages[i] + all_disagree_none_correct_percentages[i]/2
         plt.text(x[i] + width, mid_point, 
-                f'{int(all_disagree_none_correct_percentages[i])}%', 
+                f'{round(all_disagree_none_correct_percentages[i], 1)}', 
                 ha='center', va='center', fontsize=12)
     
     # Total all_disagree percentage
     total_all_disagree = (all_disagree_video_correct_percentages[i] + all_disagree_text_correct_percentages[i] + 
                          all_disagree_graph_correct_percentages[i] + all_disagree_none_correct_percentages[i])
     if total_all_disagree > 1:
-        plt.text(x[i] + width, total_all_disagree, f'{int(total_all_disagree)}%',
+        plt.text(x[i] + width, total_all_disagree, f'{round(total_all_disagree, 1)}',
                 ha='center', va='bottom', fontsize=12)
 
 # Add labels for stacked bars (only if segment is at least 1%)
@@ -581,42 +581,42 @@ for i in range(len(x)):
     # Video-Text correct
     if video_text_correct_percentages[i] > 1:
         plt.text(x[i], video_text_correct_percentages[i]/2, 
-                f'{int(video_text_correct_percentages[i])}%', 
+                f'{round(video_text_correct_percentages[i], 1)}', 
                 ha='center', va='center', fontsize=12)
     
     # Video-Text incorrect
     if video_text_incorrect_percentages[i] > 1:
         mid_point = video_text_correct_percentages[i] + video_text_incorrect_percentages[i]/2
         plt.text(x[i], mid_point, 
-                f'{int(video_text_incorrect_percentages[i])}%', 
+                f'{round(video_text_incorrect_percentages[i], 1)}', 
                 ha='center', va='center', fontsize=12)
     
     # Text-Graph correct
     if text_graph_correct_percentages[i] > 1:
         mid_point = video_text_correct_percentages[i] + video_text_incorrect_percentages[i] + text_graph_correct_percentages[i]/2
         plt.text(x[i], mid_point, 
-                f'{int(text_graph_correct_percentages[i])}%', 
+                f'{round(text_graph_correct_percentages[i], 1)}', 
                 ha='center', va='center', fontsize=12)
     
     # Text-Graph incorrect
     if text_graph_incorrect_percentages[i] > 1:
         mid_point = video_text_correct_percentages[i] + video_text_incorrect_percentages[i] + text_graph_correct_percentages[i] + text_graph_incorrect_percentages[i]/2
         plt.text(x[i], mid_point, 
-                f'{int(text_graph_incorrect_percentages[i])}%', 
+                f'{round(text_graph_incorrect_percentages[i], 1)}', 
                 ha='center', va='center', fontsize=12)
     
     # Graph-Video correct
     if graph_video_correct_percentages[i] > 1:
         mid_point = video_text_correct_percentages[i] + video_text_incorrect_percentages[i] + text_graph_correct_percentages[i] + text_graph_incorrect_percentages[i] + graph_video_correct_percentages[i]/2
         plt.text(x[i], mid_point, 
-                f'{int(graph_video_correct_percentages[i])}%', 
+                f'{round(graph_video_correct_percentages[i], 1)}', 
                 ha='center', va='center', fontsize=12)
     
     # Graph-Video incorrect
     if graph_video_incorrect_percentages[i] > 1:
         mid_point = video_text_correct_percentages[i] + video_text_incorrect_percentages[i] + text_graph_correct_percentages[i] + text_graph_incorrect_percentages[i] + graph_video_correct_percentages[i] + graph_video_incorrect_percentages[i]/2
         plt.text(x[i], mid_point, 
-                f'{int(graph_video_incorrect_percentages[i])}%', 
+                f'{round(graph_video_incorrect_percentages[i], 1)}', 
                 ha='center', va='center', fontsize=12)
     
     # Total two-agree percentage
@@ -624,7 +624,7 @@ for i in range(len(x)):
                        text_graph_correct_percentages[i] + text_graph_incorrect_percentages[i] + 
                        graph_video_correct_percentages[i] + graph_video_incorrect_percentages[i])
     if total_two_agree > 1:
-        plt.text(x[i], total_two_agree, f'{int(total_two_agree)}%',
+        plt.text(x[i], total_two_agree, f'{round(total_two_agree, 1)}',
                 ha='center', va='bottom', fontsize=12)
 
 plt.tight_layout()
