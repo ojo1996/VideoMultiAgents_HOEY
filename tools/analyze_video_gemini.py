@@ -9,22 +9,19 @@ from util import ask_gemini
 
 
 @tool
-def analyze_video_gemini(gpt_prompt:str) -> str:
+def analyze_video_gemini(analyzer_prompt:str) -> str:
     """
     Analyze video tool.
 
     Parameters:
-    gpt_prompt (str): In the GPT prompt, You must include 5 questions based on original questions and options.
-    For example, if the question asks about the purpose of the video and OptionA is “C is looking for a T-shirt” and OptionB is “C is cleaning up the room,
-    OptionA is “C is looking for a T-shirt?” and OptionB is “C is tidying the room?” and so on. 
-    The questions should be Yes/No questions whenever possible.
-    Also, please indicate what role you would like the respondent to play in answering the questions.
+    analyzer_prompt (str): Ask the analyzer questions about the video.
+    The analyzer will respond each question with a step by step reasoning grounded with timestamped evidence from the video.
 
     Returns:
     str: The analysis result.
     """
 
-    print ("gpt_prompt: ", gpt_prompt)
+    print ("analyzer_prompt: ", analyzer_prompt)
 
     video_file_name = os.getenv("VIDEO_FILE_NAME")
     video_dir       = os.getenv("VIDEO_DIR_PATH")
@@ -36,7 +33,7 @@ def analyze_video_gemini(gpt_prompt:str) -> str:
     print ("Called the tool of analyze_video_gemini.")
 
     result = ask_gemini(
-                prompt_text    = gpt_prompt,
+                prompt_text    = analyzer_prompt,
                 video_path      = video_path,
                 temperature    = 0.7,
             )
