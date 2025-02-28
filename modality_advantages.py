@@ -276,18 +276,24 @@ for q_type, type_data in type_comparisons.items():
                   f'modality_advantages_{q_type}.png')
 
 
-
-
+"""
+Calculate agreement distribution by question type
+"""
 # Calculate agreement counts
 def calculate_agreement_counts():
     agreement_counts = defaultdict(lambda: {
-        'all_agree': 0, 
+        'all_agree': {'correct': 0, 'incorrect': 0},
         'two_agree': {
-            'video_text': 0,
-            'text_graph': 0,
-            'graph_video': 0
+            'video_text': {'correct': 0, 'incorrect': 0},
+            'text_graph': {'correct': 0, 'incorrect': 0},
+            'graph_video': {'correct': 0, 'incorrect': 0}
         }, 
-        'all_disagree': 0, 
+        'all_disagree': {
+            'video_correct': 0,
+            'text_correct': 0,
+            'graph_correct': 0,
+            'none_correct': 0
+        },
         'total': 0
     })
     
@@ -298,6 +304,7 @@ def calculate_agreement_counts():
             modality: modality_data[modality][qid]['pred'] 
             for modality in ['text', 'video', 'graph']
         }
+        ground_truth = modality_data['text'][qid]['truth']
         
         # Count unique predictions
         unique_preds = len(set(predictions.values()))
@@ -305,17 +312,41 @@ def calculate_agreement_counts():
         # Update counts
         agreement_counts[q_type]['total'] += 1
         if unique_preds == 1:  # All agree
-            agreement_counts[q_type]['all_agree'] += 1
+            # Check if the agreed prediction is correct
+            if list(predictions.values())[0] == ground_truth:
+                agreement_counts[q_type]['all_agree']['correct'] += 1
+            else:
+                agreement_counts[q_type]['all_agree']['incorrect'] += 1
         elif unique_preds == 2:  # Two agree
             # Determine which two modalities agree
             if predictions['video'] == predictions['text'] != predictions['graph']:
-                agreement_counts[q_type]['two_agree']['video_text'] += 1
+                majority_pred = predictions['video']  # Same as text
+                if majority_pred == ground_truth:
+                    agreement_counts[q_type]['two_agree']['video_text']['correct'] += 1
+                else:
+                    agreement_counts[q_type]['two_agree']['video_text']['incorrect'] += 1
             elif predictions['text'] == predictions['graph'] != predictions['video']:
-                agreement_counts[q_type]['two_agree']['text_graph'] += 1
+                majority_pred = predictions['text']  # Same as graph
+                if majority_pred == ground_truth:
+                    agreement_counts[q_type]['two_agree']['text_graph']['correct'] += 1
+                else:
+                    agreement_counts[q_type]['two_agree']['text_graph']['incorrect'] += 1
             elif predictions['graph'] == predictions['video'] != predictions['text']:
-                agreement_counts[q_type]['two_agree']['graph_video'] += 1
+                majority_pred = predictions['graph']  # Same as video
+                if majority_pred == ground_truth:
+                    agreement_counts[q_type]['two_agree']['graph_video']['correct'] += 1
+                else:
+                    agreement_counts[q_type]['two_agree']['graph_video']['incorrect'] += 1
         else:  # All disagree
-            agreement_counts[q_type]['all_disagree'] += 1
+            # Check which modality (if any) got it right
+            if predictions['video'] == ground_truth:
+                agreement_counts[q_type]['all_disagree']['video_correct'] += 1
+            elif predictions['text'] == ground_truth:
+                agreement_counts[q_type]['all_disagree']['text_correct'] += 1
+            elif predictions['graph'] == ground_truth:
+                agreement_counts[q_type]['all_disagree']['graph_correct'] += 1
+            else:
+                agreement_counts[q_type]['all_disagree']['none_correct'] += 1
             
     return agreement_counts
 
@@ -324,22 +355,30 @@ agreement_counts = calculate_agreement_counts()
 
 # Calculate overall percentages
 overall_counts = {
-    'all_agree': 0, 
+    'all_agree': {'correct': 0, 'incorrect': 0},
     'two_agree': {
-        'video_text': 0,
-        'text_graph': 0,
-        'graph_video': 0
+        'video_text': {'correct': 0, 'incorrect': 0},
+        'text_graph': {'correct': 0, 'incorrect': 0},
+        'graph_video': {'correct': 0, 'incorrect': 0}
     }, 
-    'all_disagree': 0, 
+    'all_disagree': {
+        'video_correct': 0,
+        'text_correct': 0,
+        'graph_correct': 0,
+        'none_correct': 0
+    },
     'total': 0
 }
 
 for q_type in agreement_counts:
-    overall_counts['all_agree'] += agreement_counts[q_type]['all_agree']
-    overall_counts['all_disagree'] += agreement_counts[q_type]['all_disagree']
+    overall_counts['all_agree']['correct'] += agreement_counts[q_type]['all_agree']['correct']
+    overall_counts['all_agree']['incorrect'] += agreement_counts[q_type]['all_agree']['incorrect']
     overall_counts['total'] += agreement_counts[q_type]['total']
     for pair in ['video_text', 'text_graph', 'graph_video']:
-        overall_counts['two_agree'][pair] += agreement_counts[q_type]['two_agree'][pair]
+        overall_counts['two_agree'][pair]['correct'] += agreement_counts[q_type]['two_agree'][pair]['correct']
+        overall_counts['two_agree'][pair]['incorrect'] += agreement_counts[q_type]['two_agree'][pair]['incorrect']
+    for key in ['video_correct', 'text_correct', 'graph_correct', 'none_correct']:
+        overall_counts['all_disagree'][key] += agreement_counts[q_type]['all_disagree'][key]
 
 # Set up the plot
 plt.figure(figsize=(15, 8))
@@ -349,46 +388,119 @@ x = np.arange(len(sorted_q_types) + 1)  # +1 for overall
 width = 0.25
 
 # Calculate percentages for overall and each question type
-all_agree_percentages = []
-video_text_percentages = []
-text_graph_percentages = []
-graph_video_percentages = []
-all_disagree_percentages = []
+all_agree_correct_percentages = []
+all_agree_incorrect_percentages = []
+video_text_correct_percentages = []
+video_text_incorrect_percentages = []
+text_graph_correct_percentages = []
+text_graph_incorrect_percentages = []
+graph_video_correct_percentages = []
+graph_video_incorrect_percentages = []
+all_disagree_video_correct_percentages = []
+all_disagree_text_correct_percentages = []
+all_disagree_graph_correct_percentages = []
+all_disagree_none_correct_percentages = []
 labels = ['Overall'] + sorted_q_types
 
 for label in labels:
     counts = overall_counts if label == 'Overall' else agreement_counts[label]
     total = counts['total']
     if total > 0:
-        all_agree_pct = (counts['all_agree'] / total) * 100
-        video_text_pct = (counts['two_agree']['video_text'] / total) * 100
-        text_graph_pct = (counts['two_agree']['text_graph'] / total) * 100
-        graph_video_pct = (counts['two_agree']['graph_video'] / total) * 100
-        all_disagree_pct = (counts['all_disagree'] / total) * 100
+        all_agree_correct_pct = (counts['all_agree']['correct'] / total) * 100
+        all_agree_incorrect_pct = (counts['all_agree']['incorrect'] / total) * 100
         
-        all_agree_percentages.append(all_agree_pct)
-        video_text_percentages.append(video_text_pct)
-        text_graph_percentages.append(text_graph_pct)
-        graph_video_percentages.append(graph_video_pct)
-        all_disagree_percentages.append(all_disagree_pct)
+        video_text_correct_pct = (counts['two_agree']['video_text']['correct'] / total) * 100
+        video_text_incorrect_pct = (counts['two_agree']['video_text']['incorrect'] / total) * 100
+        
+        text_graph_correct_pct = (counts['two_agree']['text_graph']['correct'] / total) * 100
+        text_graph_incorrect_pct = (counts['two_agree']['text_graph']['incorrect'] / total) * 100
+        
+        graph_video_correct_pct = (counts['two_agree']['graph_video']['correct'] / total) * 100
+        graph_video_incorrect_pct = (counts['two_agree']['graph_video']['incorrect'] / total) * 100
+        
+        all_disagree_video_correct_pct = (counts['all_disagree']['video_correct'] / total) * 100
+        all_disagree_text_correct_pct = (counts['all_disagree']['text_correct'] / total) * 100
+        all_disagree_graph_correct_pct = (counts['all_disagree']['graph_correct'] / total) * 100
+        all_disagree_none_correct_pct = (counts['all_disagree']['none_correct'] / total) * 100
+        
+        all_agree_correct_percentages.append(all_agree_correct_pct)
+        all_agree_incorrect_percentages.append(all_agree_incorrect_pct)
+        video_text_correct_percentages.append(video_text_correct_pct)
+        video_text_incorrect_percentages.append(video_text_incorrect_pct)
+        text_graph_correct_percentages.append(text_graph_correct_pct)
+        text_graph_incorrect_percentages.append(text_graph_incorrect_pct)
+        graph_video_correct_percentages.append(graph_video_correct_pct)
+        graph_video_incorrect_percentages.append(graph_video_incorrect_pct)
+        all_disagree_video_correct_percentages.append(all_disagree_video_correct_pct)
+        all_disagree_text_correct_percentages.append(all_disagree_text_correct_pct)
+        all_disagree_graph_correct_percentages.append(all_disagree_graph_correct_pct)
+        all_disagree_none_correct_percentages.append(all_disagree_none_correct_pct)
     else:
-        all_agree_percentages.append(0)
-        video_text_percentages.append(0)
-        text_graph_percentages.append(0)
-        graph_video_percentages.append(0)
-        all_disagree_percentages.append(0)
+        all_agree_correct_percentages.append(0)
+        all_agree_incorrect_percentages.append(0)
+        video_text_correct_percentages.append(0)
+        video_text_incorrect_percentages.append(0)
+        text_graph_correct_percentages.append(0)
+        text_graph_incorrect_percentages.append(0)
+        graph_video_correct_percentages.append(0)
+        graph_video_incorrect_percentages.append(0)
+        all_disagree_video_correct_percentages.append(0)
+        all_disagree_text_correct_percentages.append(0)
+        all_disagree_graph_correct_percentages.append(0)
+        all_disagree_none_correct_percentages.append(0)
 
 # Plot bars
-plt.bar(x - width, all_agree_percentages, width, label='All Agree', color='green')
+# Split all_agree into correct and incorrect
+plt.bar(x - width, all_agree_correct_percentages, width, label='All Agree (Correct)', color='darkgreen')
+plt.bar(x - width, all_agree_incorrect_percentages, width, bottom=all_agree_correct_percentages, 
+        label='All Agree (Incorrect)', color='lightgreen')
 
-# Stack the three types of two-agree
-plt.bar(x, video_text_percentages, width, label='Video-Text Agree', color='lightblue')
-plt.bar(x, text_graph_percentages, width, bottom=video_text_percentages, label='Text-Graph Agree', color='yellow')
-plt.bar(x, graph_video_percentages, width, 
-        bottom=[v+t for v,t in zip(video_text_percentages, text_graph_percentages)], 
-        label='Graph-Video Agree', color='orange')
+# Define colors for correct and incorrect
+video_text_colors = ['#3498db', '#85c1e9']    # Bright blue and lighter blue
+text_graph_colors = ['#f1c40f', '#f7dc6f']    # Bright yellow and lighter gold
+graph_video_colors = ['#9b59b6', '#d7bde2']   # Bright purple and lighter lavender
 
-plt.bar(x + width, all_disagree_percentages, width, label='All Disagree', color='red')
+# Stack the three types of two-agree with correct/incorrect split
+bottom_vt = np.zeros(len(x))
+plt.bar(x, video_text_correct_percentages, width, bottom=bottom_vt, 
+        label='Video-Text Agree (Correct)', color=video_text_colors[0])
+bottom_vt += video_text_correct_percentages
+plt.bar(x, video_text_incorrect_percentages, width, bottom=bottom_vt, 
+        label='Video-Text Agree (Incorrect)', color=video_text_colors[1])
+bottom_vt += video_text_incorrect_percentages
+
+plt.bar(x, text_graph_correct_percentages, width, bottom=bottom_vt, 
+        label='Text-Graph Agree (Correct)', color=text_graph_colors[0])
+bottom_tg = bottom_vt + text_graph_correct_percentages
+plt.bar(x, text_graph_incorrect_percentages, width, bottom=bottom_tg, 
+        label='Text-Graph Agree (Incorrect)', color=text_graph_colors[1])
+bottom_tg += text_graph_incorrect_percentages
+
+plt.bar(x, graph_video_correct_percentages, width, bottom=bottom_tg, 
+        label='Graph-Video Agree (Correct)', color=graph_video_colors[0])
+bottom_gv = bottom_tg + graph_video_correct_percentages
+plt.bar(x, graph_video_incorrect_percentages, width, bottom=bottom_gv, 
+        label='Graph-Video Agree (Incorrect)', color=graph_video_colors[1])
+
+# Define colors for all disagree
+all_disagree_colors = ['#8B0000', '#B22222', '#FF0000', '#FF6347']  # Dark to light red
+
+# Stack the all disagree categories
+bottom_ad = np.zeros(len(x))
+plt.bar(x + width, all_disagree_video_correct_percentages, width, bottom=bottom_ad, 
+        label='All Disagree (Video Correct)', color=all_disagree_colors[0])
+bottom_ad += all_disagree_video_correct_percentages
+
+plt.bar(x + width, all_disagree_text_correct_percentages, width, bottom=bottom_ad, 
+        label='All Disagree (Text Correct)', color=all_disagree_colors[1])
+bottom_ad += all_disagree_text_correct_percentages
+
+plt.bar(x + width, all_disagree_graph_correct_percentages, width, bottom=bottom_ad, 
+        label='All Disagree (Graph Correct)', color=all_disagree_colors[2])
+bottom_ad += all_disagree_graph_correct_percentages
+
+plt.bar(x + width, all_disagree_none_correct_percentages, width, bottom=bottom_ad, 
+        label='All Disagree (None Correct)', color=all_disagree_colors[3])
 
 # Customize plot
 plt.rcParams.update({'font.size': 14})
@@ -396,38 +508,124 @@ plt.xlabel('Question Type', fontsize=16)
 plt.ylabel('Percentage of Questions', fontsize=16)
 plt.title('Agreement Distribution by Question Type', fontsize=18)
 plt.xticks(x, labels, fontsize=14, rotation=45, ha='right')
-plt.legend(fontsize=14)
+plt.legend(fontsize=12)
 plt.ylim(0, 100)
 plt.grid(True, axis='y', alpha=0.3)
+
 # Add percentage labels on bars
 def add_labels(x_pos, heights, width):
     for i, height in enumerate(heights):
-        plt.text(x_pos[i], height, f'{int(height)}%', 
-                ha='center', va='bottom')
+        if height > 1:  # Only add label if segment is at least 1%
+            plt.text(x_pos[i], height, f'{int(height)}%', 
+                    ha='center', va='bottom')
 
-# Add labels for all-agree and all-disagree
-add_labels(x - width, all_agree_percentages, width)
-add_labels(x + width, all_disagree_percentages, width)
-# Add labels for stacked bars (only if segment is large enough)
+# Add labels for all-agree correct and incorrect
 for i in range(len(x)):
-    # Video-Text
-    plt.text(x[i], video_text_percentages[i]/2, f'{int(video_text_percentages[i])}%', 
-            ha='center', va='center', fontsize=12)
+    # All agree correct
+    if all_agree_correct_percentages[i] > 1:
+        plt.text(x[i] - width, all_agree_correct_percentages[i]/2, 
+                f'{int(all_agree_correct_percentages[i])}%', 
+                ha='center', va='center', fontsize=12, color='white')
     
-    # Text-Graph
-    mid_point = video_text_percentages[i] + text_graph_percentages[i]/2
-    plt.text(x[i], mid_point, f'{int(text_graph_percentages[i])}%', 
-            ha='center', va='center', fontsize=12)
+    # All agree incorrect
+    if all_agree_incorrect_percentages[i] > 1:
+        mid_point = all_agree_correct_percentages[i] + all_agree_incorrect_percentages[i]/2
+        plt.text(x[i] - width, mid_point, 
+                f'{int(all_agree_incorrect_percentages[i])}%', 
+                ha='center', va='center', fontsize=12)
     
-    # Graph-Video
-    mid_point = video_text_percentages[i] + text_graph_percentages[i] + graph_video_percentages[i]/2
-    plt.text(x[i], mid_point, f'{int(graph_video_percentages[i])}%', 
-            ha='center', va='center', fontsize=12)
+    # Total all_agree percentage
+    total_all_agree = all_agree_correct_percentages[i] + all_agree_incorrect_percentages[i]
+    if total_all_agree > 1:
+        plt.text(x[i] - width, total_all_agree, f'{int(total_all_agree)}%',
+                ha='center', va='bottom', fontsize=12)
+
+# Add labels for all-disagree segments
+for i in range(len(x)):
+    # Video correct
+    if all_disagree_video_correct_percentages[i] >= 2:
+        plt.text(x[i] + width, all_disagree_video_correct_percentages[i]/2, 
+                f'{int(all_disagree_video_correct_percentages[i])}%', 
+                ha='center', va='center', fontsize=12, color='white')
+    
+    # Text correct
+    if all_disagree_text_correct_percentages[i] >= 2:
+        mid_point = all_disagree_video_correct_percentages[i] + all_disagree_text_correct_percentages[i]/2
+        plt.text(x[i] + width, mid_point, 
+                f'{int(all_disagree_text_correct_percentages[i])}%', 
+                ha='center', va='center', fontsize=12, color='white')
+    
+    # Graph correct
+    if all_disagree_graph_correct_percentages[i] >= 2:
+        mid_point = all_disagree_video_correct_percentages[i] + all_disagree_text_correct_percentages[i] + all_disagree_graph_correct_percentages[i]/2
+        plt.text(x[i] + width, mid_point, 
+                f'{int(all_disagree_graph_correct_percentages[i])}%', 
+                ha='center', va='center', fontsize=12, color='white')
+    
+    # None correct
+    if all_disagree_none_correct_percentages[i] >= 2:
+        mid_point = all_disagree_video_correct_percentages[i] + all_disagree_text_correct_percentages[i] + all_disagree_graph_correct_percentages[i] + all_disagree_none_correct_percentages[i]/2
+        plt.text(x[i] + width, mid_point, 
+                f'{int(all_disagree_none_correct_percentages[i])}%', 
+                ha='center', va='center', fontsize=12)
+    
+    # Total all_disagree percentage
+    total_all_disagree = (all_disagree_video_correct_percentages[i] + all_disagree_text_correct_percentages[i] + 
+                         all_disagree_graph_correct_percentages[i] + all_disagree_none_correct_percentages[i])
+    if total_all_disagree > 1:
+        plt.text(x[i] + width, total_all_disagree, f'{int(total_all_disagree)}%',
+                ha='center', va='bottom', fontsize=12)
+
+# Add labels for stacked bars (only if segment is at least 1%)
+for i in range(len(x)):
+    # Video-Text correct
+    if video_text_correct_percentages[i] > 1:
+        plt.text(x[i], video_text_correct_percentages[i]/2, 
+                f'{int(video_text_correct_percentages[i])}%', 
+                ha='center', va='center', fontsize=12)
+    
+    # Video-Text incorrect
+    if video_text_incorrect_percentages[i] > 1:
+        mid_point = video_text_correct_percentages[i] + video_text_incorrect_percentages[i]/2
+        plt.text(x[i], mid_point, 
+                f'{int(video_text_incorrect_percentages[i])}%', 
+                ha='center', va='center', fontsize=12)
+    
+    # Text-Graph correct
+    if text_graph_correct_percentages[i] > 1:
+        mid_point = video_text_correct_percentages[i] + video_text_incorrect_percentages[i] + text_graph_correct_percentages[i]/2
+        plt.text(x[i], mid_point, 
+                f'{int(text_graph_correct_percentages[i])}%', 
+                ha='center', va='center', fontsize=12)
+    
+    # Text-Graph incorrect
+    if text_graph_incorrect_percentages[i] > 1:
+        mid_point = video_text_correct_percentages[i] + video_text_incorrect_percentages[i] + text_graph_correct_percentages[i] + text_graph_incorrect_percentages[i]/2
+        plt.text(x[i], mid_point, 
+                f'{int(text_graph_incorrect_percentages[i])}%', 
+                ha='center', va='center', fontsize=12)
+    
+    # Graph-Video correct
+    if graph_video_correct_percentages[i] > 1:
+        mid_point = video_text_correct_percentages[i] + video_text_incorrect_percentages[i] + text_graph_correct_percentages[i] + text_graph_incorrect_percentages[i] + graph_video_correct_percentages[i]/2
+        plt.text(x[i], mid_point, 
+                f'{int(graph_video_correct_percentages[i])}%', 
+                ha='center', va='center', fontsize=12)
+    
+    # Graph-Video incorrect
+    if graph_video_incorrect_percentages[i] > 1:
+        mid_point = video_text_correct_percentages[i] + video_text_incorrect_percentages[i] + text_graph_correct_percentages[i] + text_graph_incorrect_percentages[i] + graph_video_correct_percentages[i] + graph_video_incorrect_percentages[i]/2
+        plt.text(x[i], mid_point, 
+                f'{int(graph_video_incorrect_percentages[i])}%', 
+                ha='center', va='center', fontsize=12)
     
     # Total two-agree percentage
-    total_two_agree = video_text_percentages[i] + text_graph_percentages[i] + graph_video_percentages[i]
-    plt.text(x[i], total_two_agree, f'{int(total_two_agree)}%',
-            ha='center', va='bottom', fontsize=12)
+    total_two_agree = (video_text_correct_percentages[i] + video_text_incorrect_percentages[i] + 
+                       text_graph_correct_percentages[i] + text_graph_incorrect_percentages[i] + 
+                       graph_video_correct_percentages[i] + graph_video_incorrect_percentages[i])
+    if total_two_agree > 1:
+        plt.text(x[i], total_two_agree, f'{int(total_two_agree)}%',
+                ha='center', va='bottom', fontsize=12)
 
 plt.tight_layout()
 plt.savefig('agreement_distribution.png', dpi=300)
