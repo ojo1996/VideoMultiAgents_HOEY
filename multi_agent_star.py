@@ -56,7 +56,18 @@ def agent_node(state, agent, name):
     print ("****************************************")
     print(f" Executing {name} node!")
     print ("****************************************")
-    result = agent.invoke(state)
+    
+    # Create a copy of the state to avoid modifying the original
+    agent_state = state.copy()
+
+    # Create a temporary messages list with guidance for this agent call
+    agent_state["messages"] = state["messages"][-1:]
+    print(f"********** {name} guidance **********")
+    print(agent_state["messages"])
+    print("************************************")
+    
+    # Invoke the agent with the temporary state
+    result = agent.invoke(agent_state)
 
     # Extract tool results
     intermediate_steps = prepare_intermediate_steps(result.get("intermediate_steps", []))
@@ -96,15 +107,15 @@ def execute_multi_agent(use_summary_info):
     target_question_data = json.loads(os.getenv("QA_JSON_STR"))
 
     # Create agents with their prompts
-    agent1_prompt = create_stage2_agent_prompt(target_question_data, "You are an expert video analyzer.", shuffle_questions=False, use_summary_info=use_summary_info)
+    agent1_prompt = create_stage2_agent_prompt(target_question_data, "You are an expert video analyzer. Follow the organizer's guidance when provided.", shuffle_questions=False, use_summary_info=use_summary_info)
     agent1 = create_agent(llm_openai, [analyze_video_gemini], system_prompt=agent1_prompt)
     agent1_node = functools.partial(agent_node, agent=agent1, name="agent1")
 
-    agent2_prompt = create_stage2_agent_prompt(target_question_data, "You are an expert video analyzer focusing on video captions.", shuffle_questions=False, use_summary_info=use_summary_info)
+    agent2_prompt = create_stage2_agent_prompt(target_question_data, "You are an expert video analyzer focusing on video captions. Follow the organizer's guidance when provided.", shuffle_questions=False, use_summary_info=use_summary_info)
     agent2 = create_agent(llm_openai, [retrieve_video_clip_captions], system_prompt=agent2_prompt)
     agent2_node = functools.partial(agent_node, agent=agent2, name="agent2")
 
-    agent3_prompt = create_stage2_agent_prompt(target_question_data, "You are an expert video analyzer focusing on video scene graphs.", shuffle_questions=False, use_summary_info=use_summary_info)
+    agent3_prompt = create_stage2_agent_prompt(target_question_data, "You are an expert video analyzer focusing on video scene graphs. Follow the organizer's guidance when provided.", shuffle_questions=False, use_summary_info=use_summary_info)
     agent3 = create_agent(llm_openai, [retrieve_video_scene_graph], system_prompt=agent3_prompt)
     agent3_node = functools.partial(agent_node, agent=agent3, name="agent3")
 
@@ -121,9 +132,18 @@ def execute_multi_agent(use_summary_info):
             "type": "object",
             "properties": {
                 "next": {"title": "Next", "anyOf": [{"enum": organizer_options}]},
-                "comment": {"title": "Comment", "type": "string", "description": "Your comments on the previous agent's response"}
+                "comment": {
+                    "title": "Comment", 
+                    "type": "string", 
+                    "description": "Your comments on the previous agent's response and how it relates to the conversation so far. Alternatively, you can provide a final answer if you think a decision can be made based on the conversation so far."
+                },
+                "guidance": {
+                    "title": "Guidance",
+                    "type": "string",
+                    "description": "Specific guidance for the next agent. Be directive and specific about what you want them to investigate or focus on."
+                }
             },
-            "required": ["next", "comment"],
+            "required": ["next", "comment", "guidance"],
         },
     }
     
@@ -139,7 +159,7 @@ def execute_multi_agent(use_summary_info):
                 SystemMessage(content=organizer_prompt),
                 MessagesPlaceholder(variable_name="messages"),
                 SystemMessage(
-                    content="Based on the conversation so far, provide your comments and decide which agent should speak next, or if we should provide the FINAL_ANSWER.",
+                    content="Based on the conversation so far, provide your comments on the previous agent's response and then specific guidance for the next agent. Decide which agent should speak next, or if we should provide the FINAL_ANSWER. Be directive in your guidance - tell the agent what to focus on or what specific information to look for. If final answer is decided, omit the guidance.",
                     additional_kwargs={"__openai_role__": "developer"}
                 ),
             ]
@@ -152,10 +172,15 @@ def execute_multi_agent(use_summary_info):
         )
         
         result = organizer_chain.invoke(state)
+
+        print ("************* Organizer Result **************")
+        print (result)
+        print ("****************************************")
         
         # Add organizer's comments to the conversation
+        guidance_message = [HumanMessage(content=result["guidance"], name=f'{result["next"]}-guidance')] if result["guidance"] else []
         return {
-            "messages": [HumanMessage(content=result["comment"], name="organizer")],
+            "messages": [HumanMessage(content=result["comment"], name="organizer")] + guidance_message,
             "next": result["next"]
         }
 
@@ -237,4 +262,4 @@ def execute_multi_agent(use_summary_info):
 
 if __name__ == "__main__":
 
-    execute_multi_agent()
+    execute_multi_agent(use_summary_info=True)
