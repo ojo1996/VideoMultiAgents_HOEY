@@ -59,6 +59,8 @@ def ask_gpt4_omni(openai_api_key="", prompt_text="", temperature=0.0, image_dir=
                 data_url = local_image_to_data_url(image_path)
                 frames.append({ "type": "image_url", "image_url": { "url": data_url, "detail": detail } })
 
+        print(f'Sending {len(frames)} {detail}-detail frames')
+
         response = client.chat.completions.create(
             model=model_name,
             messages=[
@@ -79,6 +81,8 @@ def ask_gpt4_omni(openai_api_key="", prompt_text="", temperature=0.0, image_dir=
             max_tokens=3000,
             temperature=temperature
         )
+
+    print(f"ask_gpt4_omni: prompt_tokens={response.usage.prompt_tokens}, completion_tokens={response.usage.completion_tokens}, total_tokens={response.usage.total_tokens}")
 
     return response.choices[0].message.content
 
@@ -496,13 +500,13 @@ def post_process_5choice(response):
 
 def read_json_file(file_path):
     # print ("read_json_file")
+    lock = FileLock(file_path + '.lock')
     try:
-        with open(file_path, "r") as f:
-            portalocker.lock(f, portalocker.LOCK_EX)
+        with lock, open(file_path, "r") as f:
             data = json.load(f)
-            portalocker.unlock(f)
             return data
     except Exception as e:
+        print(e)
         time.sleep(1)
         read_json_file(file_path)
 
@@ -515,10 +519,9 @@ def select_data_and_mark_as_processing(file_path):
 
         if "pred" not in json_data.keys():
             dict_data[video_id]["pred"] = -2
-            with open(file_path, "w") as f:
-                portalocker.lock(f, portalocker.LOCK_EX)
+            lock = FileLock(file_path + '.lock')
+            with lock, open(file_path, "w") as f:
                 json.dump(dict_data, f, indent=4)
-                portalocker.unlock(f)
             return video_id, json_data
     return None, None
 
@@ -558,10 +561,9 @@ def unmark_as_processing(file_path, video_id):
 
     if video_id in dict_data.keys() and "pred" in dict_data[video_id]:
         del dict_data[video_id]["pred"]
-        with open(file_path, "w") as f:
-            portalocker.lock(f, portalocker.LOCK_EX)
+        lock = FileLock(file_path + '.lock')
+        with lock, open(file_path, "w") as f:
             json.dump(dict_data, f, indent=4)
-            portalocker.unlock(f)
         return True
     return False
 
@@ -580,20 +582,18 @@ def save_result(file_path, video_id:str, agent_prompts:dict, agent_response:dict
     #     questions[video_id]["pred"] = result
 
     # save result
-    with open(file_path, "w") as f:
-        portalocker.lock(f, portalocker.LOCK_EX)
+    lock = FileLock(file_path + '.lock')
+    with lock, open(file_path, "w") as f:
         json.dump(questions, f, indent=4)
-        portalocker.unlock(f)
 
     # Backup
     from datetime import datetime
     if save_backup == True:
         current_time = datetime.now()
         time_str = current_time.strftime('%Y-%m-%d %H:%M:%S') + ".json"
-        with open("backup_" + time_str, "w") as f:
-            portalocker.lock(f, portalocker.LOCK_EX)
+        lock = FileLock(file_path + '.lock')
+        with lock, open("backup_" + time_str, "w") as f:
             json.dump(questions, f, indent=4)
-            portalocker.unlock(f)
 
 
 def get_video_summary(summary_cache_json_path:str, vid:str):
@@ -623,8 +623,8 @@ def create_summary_of_video(openai_api_key="", temperature=0.0, image_dir="", vi
     
     # JSON file handling
     if os.path.exists(json_path):
-        with open(json_path, "r") as f:
-            portalocker.lock(f, portalocker.LOCK_EX)
+        lock = FileLock(json_path + '.lock')
+        with lock, open(json_path, "r") as f:
             video_summaries = json.load(f)
     else:
         video_summaries = {}
@@ -730,8 +730,8 @@ def create_summary_of_video(openai_api_key="", temperature=0.0, image_dir="", vi
         "total_cost": total_cost
     }
     
-    with open(json_path, "w") as file:
-        portalocker.lock(file, portalocker.LOCK_EX)
+    lock = FileLock(json_path + '.lock')
+    with lock, open(json_path, "w") as file:
         json.dump(video_summaries, file, indent=4)
     
     return video_summaries[vid]
