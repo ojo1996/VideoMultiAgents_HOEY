@@ -8,6 +8,7 @@
 /vlap/lightning_logs/**
 
 
+**.lock
 **.json
 **.ckpt
 **.pth
