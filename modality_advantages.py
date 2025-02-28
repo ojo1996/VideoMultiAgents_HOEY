@@ -275,6 +275,167 @@ for q_type, type_data in type_comparisons.items():
                   f'Advantages by Modality for {q_type} Questions',
                   f'modality_advantages_{q_type}.png')
 
+
+
+
+# Calculate agreement counts
+def calculate_agreement_counts():
+    agreement_counts = defaultdict(lambda: {
+        'all_agree': 0, 
+        'two_agree': {
+            'video_text': 0,
+            'text_graph': 0,
+            'graph_video': 0
+        }, 
+        'all_disagree': 0, 
+        'total': 0
+    })
+    
+    # Process each question
+    for qid in all_questions:
+        q_type = modality_data['text'][qid]['type']
+        predictions = {
+            modality: modality_data[modality][qid]['pred'] 
+            for modality in ['text', 'video', 'graph']
+        }
+        
+        # Count unique predictions
+        unique_preds = len(set(predictions.values()))
+        
+        # Update counts
+        agreement_counts[q_type]['total'] += 1
+        if unique_preds == 1:  # All agree
+            agreement_counts[q_type]['all_agree'] += 1
+        elif unique_preds == 2:  # Two agree
+            # Determine which two modalities agree
+            if predictions['video'] == predictions['text'] != predictions['graph']:
+                agreement_counts[q_type]['two_agree']['video_text'] += 1
+            elif predictions['text'] == predictions['graph'] != predictions['video']:
+                agreement_counts[q_type]['two_agree']['text_graph'] += 1
+            elif predictions['graph'] == predictions['video'] != predictions['text']:
+                agreement_counts[q_type]['two_agree']['graph_video'] += 1
+        else:  # All disagree
+            agreement_counts[q_type]['all_disagree'] += 1
+            
+    return agreement_counts
+
+# Calculate agreement percentages
+agreement_counts = calculate_agreement_counts()
+
+# Calculate overall percentages
+overall_counts = {
+    'all_agree': 0, 
+    'two_agree': {
+        'video_text': 0,
+        'text_graph': 0,
+        'graph_video': 0
+    }, 
+    'all_disagree': 0, 
+    'total': 0
+}
+
+for q_type in agreement_counts:
+    overall_counts['all_agree'] += agreement_counts[q_type]['all_agree']
+    overall_counts['all_disagree'] += agreement_counts[q_type]['all_disagree']
+    overall_counts['total'] += agreement_counts[q_type]['total']
+    for pair in ['video_text', 'text_graph', 'graph_video']:
+        overall_counts['two_agree'][pair] += agreement_counts[q_type]['two_agree'][pair]
+
+# Set up the plot
+plt.figure(figsize=(15, 8))
+
+# Prepare data for plotting
+x = np.arange(len(sorted_q_types) + 1)  # +1 for overall
+width = 0.25
+
+# Calculate percentages for overall and each question type
+all_agree_percentages = []
+video_text_percentages = []
+text_graph_percentages = []
+graph_video_percentages = []
+all_disagree_percentages = []
+labels = ['Overall'] + sorted_q_types
+
+for label in labels:
+    counts = overall_counts if label == 'Overall' else agreement_counts[label]
+    total = counts['total']
+    if total > 0:
+        all_agree_pct = (counts['all_agree'] / total) * 100
+        video_text_pct = (counts['two_agree']['video_text'] / total) * 100
+        text_graph_pct = (counts['two_agree']['text_graph'] / total) * 100
+        graph_video_pct = (counts['two_agree']['graph_video'] / total) * 100
+        all_disagree_pct = (counts['all_disagree'] / total) * 100
+        
+        all_agree_percentages.append(all_agree_pct)
+        video_text_percentages.append(video_text_pct)
+        text_graph_percentages.append(text_graph_pct)
+        graph_video_percentages.append(graph_video_pct)
+        all_disagree_percentages.append(all_disagree_pct)
+    else:
+        all_agree_percentages.append(0)
+        video_text_percentages.append(0)
+        text_graph_percentages.append(0)
+        graph_video_percentages.append(0)
+        all_disagree_percentages.append(0)
+
+# Plot bars
+plt.bar(x - width, all_agree_percentages, width, label='All Agree', color='green')
+
+# Stack the three types of two-agree
+plt.bar(x, video_text_percentages, width, label='Video-Text Agree', color='lightblue')
+plt.bar(x, text_graph_percentages, width, bottom=video_text_percentages, label='Text-Graph Agree', color='yellow')
+plt.bar(x, graph_video_percentages, width, 
+        bottom=[v+t for v,t in zip(video_text_percentages, text_graph_percentages)], 
+        label='Graph-Video Agree', color='orange')
+
+plt.bar(x + width, all_disagree_percentages, width, label='All Disagree', color='red')
+
+# Customize plot
+plt.rcParams.update({'font.size': 14})
+plt.xlabel('Question Type', fontsize=16)
+plt.ylabel('Percentage of Questions', fontsize=16)
+plt.title('Agreement Distribution by Question Type', fontsize=18)
+plt.xticks(x, labels, fontsize=14, rotation=45, ha='right')
+plt.legend(fontsize=14)
+plt.ylim(0, 100)
+plt.grid(True, axis='y', alpha=0.3)
+# Add percentage labels on bars
+def add_labels(x_pos, heights, width):
+    for i, height in enumerate(heights):
+        plt.text(x_pos[i], height, f'{int(height)}%', 
+                ha='center', va='bottom')
+
+# Add labels for all-agree and all-disagree
+add_labels(x - width, all_agree_percentages, width)
+add_labels(x + width, all_disagree_percentages, width)
+# Add labels for stacked bars (only if segment is large enough)
+for i in range(len(x)):
+    # Video-Text
+    plt.text(x[i], video_text_percentages[i]/2, f'{int(video_text_percentages[i])}%', 
+            ha='center', va='center', fontsize=12)
+    
+    # Text-Graph
+    mid_point = video_text_percentages[i] + text_graph_percentages[i]/2
+    plt.text(x[i], mid_point, f'{int(text_graph_percentages[i])}%', 
+            ha='center', va='center', fontsize=12)
+    
+    # Graph-Video
+    mid_point = video_text_percentages[i] + text_graph_percentages[i] + graph_video_percentages[i]/2
+    plt.text(x[i], mid_point, f'{int(graph_video_percentages[i])}%', 
+            ha='center', va='center', fontsize=12)
+    
+    # Total two-agree percentage
+    total_two_agree = video_text_percentages[i] + text_graph_percentages[i] + graph_video_percentages[i]
+    plt.text(x[i], total_two_agree, f'{int(total_two_agree)}%',
+            ha='center', va='bottom', fontsize=12)
+
+plt.tight_layout()
+plt.savefig('agreement_distribution.png', dpi=300)
+plt.close()
+
+
+
+
 # Calculate and visualize Cohen's Kappa scores
 from sklearn.metrics import cohen_kappa_score
 import seaborn as sns
