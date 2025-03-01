@@ -3,16 +3,18 @@ import time
 import requests
 import datetime
 from retry import retry
-from openai import AzureOpenAI, OpenAI
+from openai import OpenAI
 import re
 import json
 import random
 import glob
 import base64
-import portalocker
+from filelock import FileLock
 from mimetypes import guess_type
 import numpy as np
-
+from typing import Literal
+from google import genai
+from google.genai import types
 
 # Function to encode a local image into data URL
 def local_image_to_data_url(image_path):
@@ -57,6 +59,8 @@ def ask_gpt4_omni(openai_api_key="", prompt_text="", temperature=0.0, image_dir=
                 data_url = local_image_to_data_url(image_path)
                 frames.append({ "type": "image_url", "image_url": { "url": data_url, "detail": detail } })
 
+        print(f'Sending {len(frames)} {detail}-detail frames')
+
         response = client.chat.completions.create(
             model=model_name,
             messages=[
@@ -78,7 +82,137 @@ def ask_gpt4_omni(openai_api_key="", prompt_text="", temperature=0.0, image_dir=
             temperature=temperature
         )
 
+    print(f"ask_gpt4_omni: prompt_tokens={response.usage.prompt_tokens}, completion_tokens={response.usage.completion_tokens}, total_tokens={response.usage.total_tokens}")
+
     return response.choices[0].message.content
+
+
+
+# @retry(tries=3, delay=3)
+def ask_gemini(prompt_text: str, video_path: str = "", temperature=0.7) -> str:
+    """
+    Send a prompt to Gemini 2.0 for video analysis.
+
+    Args:
+        prompt_text (str): The prompt text to send to Gemini
+        video_path (str): Path to the video file to analyze
+
+    Returns:
+        str: Gemini's response text
+    """
+    # Initialize Gemini client
+    client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+    
+    # Use Gemini 2.0 Flash model optimized for video
+    model_name = "gemini-2.0-flash"
+
+    generation_config = types.GenerateContentConfig(
+        max_output_tokens=3000,
+        temperature=temperature,
+        seed=42,
+        safety_settings= [
+          types.SafetySetting(
+              category='HARM_CATEGORY_HATE_SPEECH',
+              threshold='BLOCK_NONE'
+          ),
+          types.SafetySetting(
+              category='HARM_CATEGORY_HARASSMENT',
+              threshold='BLOCK_NONE'
+          ),
+          types.SafetySetting(
+              category='HARM_CATEGORY_SEXUALLY_EXPLICIT',
+              threshold='BLOCK_NONE'
+          ),
+          types.SafetySetting(
+              category='HARM_CATEGORY_DANGEROUS_CONTENT',
+              threshold='BLOCK_NONE'
+          ),
+          types.SafetySetting(
+              category='HARM_CATEGORY_CIVIC_INTEGRITY',
+              threshold='BLOCK_NONE'
+          ),
+      ]
+    )
+    if video_path:
+        # Check if video is already in cache
+        cache_file_path = f"gemini_video_cache.json"
+        video_key = os.path.basename(os.path.splitext(video_path)[0])
+        video_file_name = None
+        
+        # Use FileLock to safely read from cache
+        lock = FileLock(f"{cache_file_path}.lock")
+        
+        with lock:
+            # Load cache if exists
+            if os.path.exists(cache_file_path):
+                try:
+                    with open(cache_file_path, 'r') as f:
+                        video_cache = json.load(f)
+                    if video_key in video_cache:
+                        video_file_name = video_cache[video_key]
+                except json.JSONDecodeError:
+                    video_cache = {}
+            else:
+                video_cache = {}
+        
+        # Try to get existing file or upload new one
+        if video_file_name:
+            try:
+                video_file = client.files.get(name=video_file_name)
+                print(f'Found cached video: {video_file.name}')
+            except Exception as e:
+                print(f'Error retrieving cached video: {e}')
+                video_file_name = None
+        
+        if not video_file_name:
+            # Upload video file to Gemini
+            video_file = client.files.upload(file=video_path)
+            
+            # Update cache with new mapping using FileLock
+            with lock:
+                # Re-read the cache in case it was modified by another process
+                if os.path.exists(cache_file_path):
+                    try:
+                        with open(cache_file_path, 'r') as f:
+                            video_cache = json.load(f)
+                    except json.JSONDecodeError:
+                        video_cache = {}
+                
+                video_cache[video_key] = video_file.name
+                with open(cache_file_path, 'w') as f:
+                    json.dump(video_cache, f)
+                print(f'Added video to cache: {video_key} -> {video_file.name}')
+
+        # Wait for video processing to complete
+        while video_file.state == "PROCESSING":
+            print('Waiting for video to be processed.')
+            time.sleep(10)
+            video_file = client.files.get(name=video_file.name)
+
+        if video_file.state == "FAILED":
+            raise ValueError(video_file.state)
+        print(f'Video processing complete: {video_file.uri}')
+
+        # Generate response with video
+        response = client.models.generate_content(
+            model=model_name,
+            contents=[
+                video_file,
+                prompt_text,
+            ],
+            config=generation_config
+        )
+    else:
+        # Generate response without video
+        response = client.models.generate_content(
+            model=model_name,
+            contents=[prompt_text],
+            config=generation_config
+        )
+
+    print(f"ask_gemini: prompt_tokens={response.usage_metadata.prompt_token_count}, completion_tokens={response.usage_metadata.candidates_token_count}, total_tokens={response.usage_metadata.total_token_count}")
+
+    return response.text
 
 
 def create_mas_stage1_prompt(json_data):
@@ -184,23 +318,40 @@ def create_question_sentence(question_data:dict, shuffle_questions=False):
     return prompt
 
 
-def create_stage2_agent_prompt(question_data:dict, generated_expert_prompt="", shuffle_questions=False):
-    prompt = create_question_sentence(question_data, shuffle_questions)
+def create_agent_prompt(question_data: dict, agent_type: Literal["text_expert", "video_expert", "graph_expert"] = "text_expert", use_summary_info=False) -> str:
+    """
+    Creates a prompt for a specific agent type with predefined instructions.
 
-    summary_info = json.loads(os.getenv("SUMMARY_INFO"))
-    prompt += "\n\n[Video Summary Information]\n"
-    prompt += "Entire Summary: \n" + summary_info["entire_summary"] + "\n\n"
-    prompt += "Detail Summaries: \n" + summary_info["detail_summaries"]
-    
+    :param question_data: Dictionary containing the question data.
+    :param agent_type: The type of expert agent. Must be one of:
+                        - "text_expert"
+                        - "video_expert"
+                        - "graph_expert"
+                        Default is "text_expert".
+    :return: Formatted prompt string.
+    """
+    prompt = create_question_sentence(question_data)
+
+    if use_summary_info:
+        summary_info = json.loads(os.getenv("SUMMARY_INFO"))
+        # summary_info = json.loads("/root/VideoMultiAgents/nextqa_summary_cache.json")
+        prompt += "\n\n[Video Summary Information]\n"
+        prompt += "Entire Summary: \n" + summary_info["entire_summary"] + "\n\n"
+        prompt += "Detail Summaries: \n" + summary_info["detail_summaries"]
+
     prompt += "\n\n[Instructions]\n"
-    # prompt += "Understand the question and options well and focus on the differences between the options.\n"
-    # prompt += "Exclude options that contain unnecessary embellishments, such as subjective adverbs or clauses that cannot be objectively determined, and consider only the remaining options.\n"
-    prompt += generated_expert_prompt
-    prompt += "\nBe sure to call the Analyze video tool."
+    instructions = {
+        "text_expert": "Your task is to answer the question related to the video as a Text Expert. Analyze the video from the perspective of a professional text analyst and answer the following questions based on your expertise. You must use the tool to obtain relevant data, and integrate that data into your answer. Please think step-by-step.",
+        "video_expert": "Your task is to answer the question related to the video as a Video Expert. Analyze the video from the perspective of a professional video analyst and answer the following questions based on your expertise. You must use the tool to obtain relevant data, and integrate that data into your answer. Please think step-by-step.",
+        "graph_expert": "Your task is to answer the question related to the video as a Graph Expert. Analyze the video from the perspective of a professional graph analyst and answer the following questions based on your expertise. You must use the tool to obtain relevant data, and integrate that data into your answer. Please think step-by-step."
+    }
+
+    prompt += instructions[agent_type]
+
     return prompt
 
 
-def create_stage2_organizer_prompt():
+def create_organizer_prompt():
 
     if os.getenv("DATASET") == "egoschema" or os.getenv("DATASET") == "nextqa":
         organizer_prompt = (
@@ -236,6 +387,54 @@ def create_stage2_organizer_prompt():
     return organizer_prompt
 
 
+def create_stage2_agent_prompt(question_data:dict, generated_expert_prompt="", shuffle_questions=False, use_summary_info=False):
+    prompt = create_question_sentence(question_data, shuffle_questions)
+
+    if use_summary_info:
+        summary_info = json.loads(os.getenv("SUMMARY_INFO"))
+        prompt += "\n\n[Video Summary Information]\n"
+        prompt += "Entire Summary: \n" + summary_info["entire_summary"] + "\n\n"
+        prompt += "Detail Summaries: \n" + summary_info["detail_summaries"]
+    
+    prompt += "\n\n[Instructions]\n"
+    prompt += generated_expert_prompt
+    return prompt
+
+
+def create_star_organizer_prompt():
+    shared_organizer_prompt = (
+        "[Instructions]\n"
+        "You are the organizer of a discussion between three expert agents analyzing a video. "
+        "Your task is to coordinate the discussion by deciding which agent should speak next or when to conclude with a final answer.\n\n"
+        
+        "The three agents are:\n"
+        "- agent1: An expert video analyzer who focuses on video question answering\n"
+        "- agent2: An expert video analyzer who focuses on video captions\n"
+        "- agent3: An expert video analyzer who focuses on video scene graphs\n\n"
+        
+        "After each agent speaks, you must provide a comment on the previous agent's response and then decide one of the following:\n"
+        "1. Ask a specific agent to provide more information or address a particular aspect (select 'agent1', 'agent2', or 'agent3').\n"
+        "2. Conclude the discussion and provide a final answer (select 'FINAL_ANSWER').\n\n"
+        "If you choose to ask another agent, you must specify guidance for that agent by telling it what to focus on or what specific information to look for.\n"
+        "Be directive about what information is needed or what aspects to investigate. Focus on requesting objective analysis rather than suggesting specific conclusions. Ask for information or analysis without implying expected outcomes.\n"
+        "When agents disagree with each other, you must ask them to look for evidence for the opposing side, rather than reaffirming their own opinion.\n\n"
+    )
+    if os.getenv("DATASET") == "egoschema" or os.getenv("DATASET") == "nextqa":
+        organizer_prompt = (
+            shared_organizer_prompt +
+            "When concluding the discussion, your final answer should be one of the following options: OptionA, OptionB, OptionC, OptionD, OptionE, along with an explanation.\n"
+            "Base your decision on a comprehensive analysis of each agent's opinions and the information provided. Evaluate the reasoning behind each response to determine whether the evidence is sufficient for a final decision or if further input is needed from a specific agent."
+        )
+    elif os.getenv("DATASET") == "momaqa":
+        organizer_prompt = (
+            shared_organizer_prompt +
+            "When concluding the discussion, your final answer should be a concise and clear answer to the question, along with an explanation.\n"
+            "Stated the final answer as a single word or phrase (e.g., 'basketball player', 'preparing food'). If any part of the output is a number, represent it as a digit (e.g., '1') rather than as a word (e.g., 'one')."
+        )
+
+    return organizer_prompt
+
+
 def set_environment_variables(dataset:str, video_id:str, qa_json_data:dict):
     if dataset == "egoschema": index_name = video_id
     elif dataset == "nextqa" : index_name = video_id.split("_")[0]
@@ -245,6 +444,7 @@ def set_environment_variables(dataset:str, video_id:str, qa_json_data:dict):
         os.environ["VIDEO_FILE_NAME"] = video_id
     elif dataset == "nextqa":
         os.environ["VIDEO_FILE_NAME"] = qa_json_data["map_vid_vidorid"].replace("/", "-")
+        os.environ["QUESTION_ID"] = qa_json_data["q_uid"]
     elif dataset == "momaqa":
         os.environ["VIDEO_FILE_NAME"] = qa_json_data["video_id"]
 
@@ -255,6 +455,19 @@ def set_environment_variables(dataset:str, video_id:str, qa_json_data:dict):
 
     print ("{} : {}".format(video_id, index_name))
 
+
+def post_intermediate_process(message:str):
+    if os.getenv("DATASET") == "egoschema" or os.getenv("DATASET") == "nextqa":
+        prediction_num = post_process_5choice(message)
+        if prediction_num == -1:
+            prompt = message + "\n\nPlease retrieve the answer from the sentence above. Your response should be one of the following options: Option A, Option B, Option C, Option D, Option E."
+            response_data = ask_gpt4_omni(openai_api_key=os.getenv("OPENAI_API_KEY"), prompt_text=prompt)
+            prediction_num = post_process(response_data)
+        return prediction_num
+    elif os.getenv("DATASET") == "momaqa":
+        prompt = message + "\n\nExtract and output only the content that immediately follows \"- Pred:\" on its line. Do not include any additional text or formatting."
+        response_data = ask_gpt4_omni(openai_api_key=os.getenv("OPENAI_API_KEY"), prompt_text=prompt)
+        return response_data
 
 def post_process(message:str):
 
@@ -295,13 +508,13 @@ def post_process_5choice(response):
 
 def read_json_file(file_path):
     # print ("read_json_file")
+    lock = FileLock(file_path + '.lock')
     try:
-        with open(file_path, "r") as f:
-            portalocker.lock(f, portalocker.LOCK_EX)
+        with lock, open(file_path, "r") as f:
             data = json.load(f)
-            portalocker.unlock(f)
             return data
     except Exception as e:
+        print(e)
         time.sleep(1)
         read_json_file(file_path)
 
@@ -314,10 +527,9 @@ def select_data_and_mark_as_processing(file_path):
 
         if "pred" not in json_data.keys():
             dict_data[video_id]["pred"] = -2
-            with open(file_path, "w") as f:
-                portalocker.lock(f, portalocker.LOCK_EX)
+            lock = FileLock(file_path + '.lock')
+            with lock, open(file_path, "w") as f:
                 json.dump(dict_data, f, indent=4)
-                portalocker.unlock(f)
             return video_id, json_data
     return None, None
 
@@ -357,20 +569,21 @@ def unmark_as_processing(file_path, video_id):
 
     if video_id in dict_data.keys() and "pred" in dict_data[video_id]:
         del dict_data[video_id]["pred"]
-        with open(file_path, "w") as f:
-            portalocker.lock(f, portalocker.LOCK_EX)
+        lock = FileLock(file_path + '.lock')
+        with lock, open(file_path, "w") as f:
             json.dump(dict_data, f, indent=4)
-            portalocker.unlock(f)
         return True
     return False
 
 
-def save_result(file_path, video_id:str, agent_prompts:dict, agent_response:dict, prediction_result:int, save_backup=False):
+def save_result(file_path, video_id:str, agent_prompts:dict, agent_response:dict, prediction_result:int, intermediate_result, save_backup=False):
     questions = read_json_file(file_path)
 
     questions[video_id]["agent_prompts"] = agent_prompts
     questions[video_id]["response"] = agent_response
     questions[video_id]["pred"] = prediction_result
+    # if intermediate_result:
+    questions[video_id]["intermediate_result"] = intermediate_result
     # if result == -1:
     #     # use random value 0 to 4
     #     questions[video_id]["pred"] = random.randint(0, 4)
@@ -379,20 +592,18 @@ def save_result(file_path, video_id:str, agent_prompts:dict, agent_response:dict
     #     questions[video_id]["pred"] = result
 
     # save result
-    with open(file_path, "w") as f:
-        portalocker.lock(f, portalocker.LOCK_EX)
+    lock = FileLock(file_path + '.lock')
+    with lock, open(file_path, "w") as f:
         json.dump(questions, f, indent=4)
-        portalocker.unlock(f)
 
     # Backup
     from datetime import datetime
     if save_backup == True:
         current_time = datetime.now()
         time_str = current_time.strftime('%Y-%m-%d %H:%M:%S') + ".json"
-        with open("backup_" + time_str, "w") as f:
-            portalocker.lock(f, portalocker.LOCK_EX)
+        lock = FileLock(file_path + '.lock')
+        with lock, open("backup_" + time_str, "w") as f:
             json.dump(questions, f, indent=4)
-            portalocker.unlock(f)
 
 
 def get_video_summary(summary_cache_json_path:str, vid:str):
@@ -422,8 +633,8 @@ def create_summary_of_video(openai_api_key="", temperature=0.0, image_dir="", vi
     
     # JSON file handling
     if os.path.exists(json_path):
-        with open(json_path, "r") as f:
-            portalocker.lock(f, portalocker.LOCK_EX)
+        lock = FileLock(json_path + '.lock')
+        with lock, open(json_path, "r") as f:
             video_summaries = json.load(f)
     else:
         video_summaries = {}
@@ -529,12 +740,33 @@ def create_summary_of_video(openai_api_key="", temperature=0.0, image_dir="", vi
         "total_cost": total_cost
     }
     
-    with open(json_path, "w") as file:
-        portalocker.lock(file, portalocker.LOCK_EX)
+    lock = FileLock(json_path + '.lock')
+    with lock, open(json_path, "w") as file:
         json.dump(video_summaries, file, indent=4)
     
     return video_summaries[vid]
 
+
+def prepare_intermediate_steps(steps):
+
+    sanitized = []
+    for step in steps:
+        action, output = step
+        if hasattr(action, "__dict__"):
+            action_dict = action.__dict__
+        elif isinstance(action, dict):
+            action_dict = action
+        else:
+            action_dict = action
+
+        filtered_action = {}
+        if "tool" in action_dict:
+            filtered_action["tool"] = action_dict["tool"]
+        if "tool_input" in action_dict:
+            filtered_action["tool_input"] = action_dict["tool_input"]
+
+        sanitized.append((filtered_action, output))
+    return sanitized
 
 
 
