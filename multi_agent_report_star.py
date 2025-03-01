@@ -153,7 +153,7 @@ def execute_multi_agent(use_summary_info):
                 
                 # Create a simplified result dictionary
                 agents_result_dict = {
-                    "agent1": video_data[video_id]["response"].get("output", f"Prediction: Option {['A', 'B', 'C', 'D', 'E'][video_pred]}"),
+                    "agent1": video_data[video_id]["response"].get("output", f"Prediction: Option {['A', 'B', 'C', 'D', 'E'][video_pred]}") + f"\n\n{json.dumps(video_data[video_id]['response'].get('intermediate_steps', ''), indent=2)}",
                     "agent2": text_data[video_id]["response"].get("output", f"Prediction: Option {['A', 'B', 'C', 'D', 'E'][text_pred]}"),
                     "agent3": graph_data[video_id]["response"].get("output", f"Prediction: Option {['A', 'B', 'C', 'D', 'E'][graph_pred]}"),
                     "organizer": f"All agents agree on Option {['A', 'B', 'C', 'D', 'E'][video_pred]}"
