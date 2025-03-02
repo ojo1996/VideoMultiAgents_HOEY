@@ -149,6 +149,29 @@ def ask_gemini(prompt_text: str, video_path: str = "", temperature=0.7) -> str:
                         video_cache = json.load(f)
                     if video_key in video_cache:
                         video_file_name = video_cache[video_key]
+                    elif len(video_cache) >= 1500: # need to delete old video
+                        # Delete all files in cache to free up space
+                        print("Cache limit reached. Clearing video cache...")
+                        # Get all video file names from the cache
+                        video_files_to_delete = list(video_cache.values())
+                        import concurrent.futures
+                        # Delete files in parallel using ThreadPoolExecutor
+                        with concurrent.futures.ThreadPoolExecutor() as executor:
+                            # Submit delete tasks for each file
+                            delete_futures = [
+                                executor.submit(client.files.delete, name=file_name)
+                                for file_name in video_files_to_delete
+                            ]
+                            
+                            # Wait for all deletions to complete
+                            concurrent.futures.wait(delete_futures)
+                        
+                        # Clear the cache dictionary
+                        video_cache = {}
+                        # Write empty cache to file
+                        with open(cache_file_path, 'w') as f:
+                            json.dump(video_cache, f)
+                        print("Cache cleared.")
                 except json.JSONDecodeError:
                     video_cache = {}
             else:
