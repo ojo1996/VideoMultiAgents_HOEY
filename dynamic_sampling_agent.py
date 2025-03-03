@@ -59,7 +59,7 @@ def execute_dynamic_sampling_agent():
                 "type": "object",
                 "properties": {
                     "type": {"type": "string", "enum": ["answer", "more_frames"]},
-                    "answer": {"type": "string", "enum": ["Option A", "Option B", "Option C", "Option D", "Option E"]},
+                    "answer": {"type": "string"},
                     "start_timestamp": {"type": "string", "pattern": "^[0-9]{2}:[0-9]{2}$", "description": "Timestamp in mm:ss format"},
                     "end_timestamp": {"type": "string", "pattern": "^[0-9]{2}:[0-9]{2}$", "description": "Timestamp in mm:ss format"}
                 },
@@ -87,12 +87,51 @@ def execute_dynamic_sampling_agent():
         "Think step by step and analyze the visual content carefully. "
         f"If you need more information, you can request specific segments of the video by providing start and end timestamps in mm:ss format. "
         f"The valid range for timestamps is from 00:00 to {duration_str}. "
-        "If you have enough information to answer, provide your final answer as one of the options (A, B, C, D, or E)."
+        "If you have enough information to answer, provide your final answer with justification."
     )
     
     # Dynamic sampling loop
     max_iterations = 5
     prediction_result = -1
+
+    def answer_with_options(message_content):
+        message_content.append(f"{question_sentence}\n\nThink step by step and answer the question with one of the options (A, B, C, D, or E).")
+        # Force a final answer on the last iteration
+        response = client.models.generate_content(
+            model=model_name,
+            contents=message_content,
+            config=types.GenerateContentConfig(
+                max_output_tokens=3000,
+                temperature=0.7,
+                seed=42,
+                system_instruction=system_prompt,
+                safety_settings= [
+                    types.SafetySetting(
+                        category='HARM_CATEGORY_HATE_SPEECH',
+                        threshold='BLOCK_NONE'
+                    ),
+                    types.SafetySetting(
+                        category='HARM_CATEGORY_HARASSMENT',
+                        threshold='BLOCK_NONE'
+                    ),
+                    types.SafetySetting(
+                        category='HARM_CATEGORY_SEXUALLY_EXPLICIT',
+                        threshold='BLOCK_NONE'
+                    ),
+                    types.SafetySetting(
+                        category='HARM_CATEGORY_DANGEROUS_CONTENT',
+                        threshold='BLOCK_NONE'
+                    ),
+                    types.SafetySetting(
+                        category='HARM_CATEGORY_CIVIC_INTEGRITY',
+                        threshold='BLOCK_NONE'
+                    ),
+                ],
+                response_mime_type='application/json',
+                response_schema=final_answer_schema
+            )
+        )
+        return response
     
     for iteration in range(max_iterations):
         # For the first iteration, sample frames uniformly from the entire video
@@ -116,7 +155,7 @@ def execute_dynamic_sampling_agent():
                 
                 # Create the prompt for the first iteration
                 user_prompt = [
-                    f"{question_sentence}\n\nThese are uniformly sampled frames from the 00:00 to {duration_str}. Analyze them carefully.",
+                    f'{target_question_data["question"]}\n\nThese are uniformly sampled frames from the 00:00 to {duration_str}. Analyze them carefully.',
                     collage_image
                 ]
                 message_content = user_prompt
@@ -158,41 +197,7 @@ def execute_dynamic_sampling_agent():
                 )
             )
         else:
-            # Force a final answer on the last iteration
-            response = client.models.generate_content(
-                model=model_name,
-                contents=message_content,
-                config=types.GenerateContentConfig(
-                    max_output_tokens=3000,
-                    temperature=0.7,
-                    seed=42,
-                    system_instruction=system_prompt,
-                    safety_settings= [
-                        types.SafetySetting(
-                            category='HARM_CATEGORY_HATE_SPEECH',
-                            threshold='BLOCK_NONE'
-                        ),
-                        types.SafetySetting(
-                            category='HARM_CATEGORY_HARASSMENT',
-                            threshold='BLOCK_NONE'
-                        ),
-                        types.SafetySetting(
-                            category='HARM_CATEGORY_SEXUALLY_EXPLICIT',
-                            threshold='BLOCK_NONE'
-                        ),
-                        types.SafetySetting(
-                            category='HARM_CATEGORY_DANGEROUS_CONTENT',
-                            threshold='BLOCK_NONE'
-                        ),
-                        types.SafetySetting(
-                            category='HARM_CATEGORY_CIVIC_INTEGRITY',
-                            threshold='BLOCK_NONE'
-                        ),
-                    ],
-                    response_mime_type='application/json',
-                    response_schema=final_answer_schema
-                )
-            )
+            response = answer_with_options(message_content)
         
         # Process the response
         response_json = json.loads(response.text)
@@ -241,9 +246,12 @@ def execute_dynamic_sampling_agent():
             # Extract the final answer
             if iteration < max_iterations - 1:
                 answer = response_json["decision"]["answer"]
-            else:
-                answer = response_json["answer"]
-                
+                response = answer_with_options(message_content)
+                response_json = json.loads(response.text)
+                message_content.append(response.text)
+            
+            answer = response_json["answer"]
+            
             print(f"Final answer: {answer}")
             
             # Convert answer to prediction result (0-4)
