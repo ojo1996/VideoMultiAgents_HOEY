@@ -42,8 +42,8 @@ def execute_dynamic_sampling_agent():
     # Get duration for current video
     video_id = video_file_name.split('-')[0] if os.getenv("DATASET") == "nextqa" else video_file_name
     video_duration_seconds = video_durations.get(video_id, 60)  # Default to 60 seconds if not found
-    minutes = video_duration_seconds // 60
-    seconds = video_duration_seconds % 60
+    minutes = int(video_duration_seconds // 60)
+    seconds = int(video_duration_seconds % 60)
     duration_str = f"{minutes:02d}:{seconds:02d}"
     
     # Configure Gemini API
@@ -99,13 +99,17 @@ def execute_dynamic_sampling_agent():
         if iteration == 0:
             with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp_file:
                 collage_path = temp_file.name
-                extract_frames_to_collage(
+                success = extract_frames_to_collage(
                     video_path=video_path,
                     output_path=collage_path,
                     num_frames=16,
                     grid_size=(4, 4),
                     output_size=768
                 )
+                if not success:
+                    error_message = f"Error: Iteration {iteration + 1} could not extract frames from 00:00 to {duration_str} for video {video_path}"
+                    print(error_message)
+                    return -1, [error_message]
                 
                 # Load the collage image
                 collage_image = Image.open(collage_path)
@@ -210,7 +214,7 @@ def execute_dynamic_sampling_agent():
             # Extract new frames based on the requested timestamps
             with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp_file:
                 collage_path = temp_file.name
-                extract_frames_to_collage(
+                success = extract_frames_to_collage(
                     video_path=video_path,
                     output_path=collage_path,
                     start_time=start_timestamp,
@@ -219,6 +223,10 @@ def execute_dynamic_sampling_agent():
                     grid_size=(4, 4),
                     output_size=768
                 )
+                if not success:
+                    error_message = f"Error: Iteration {iteration + 1} could not extract frames from {start_timestamp} to {end_timestamp} for video {video_path}"
+                    print(error_message)
+                    return -1, message_content + [error_message]
                 
                 # Load the new collage image
                 collage_image = Image.open(collage_path)
