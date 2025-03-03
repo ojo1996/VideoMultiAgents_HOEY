@@ -61,10 +61,32 @@ def execute_dynamic_sampling_agent():
                     "type": {"type": "string", "enum": ["answer", "more_frames"]},
                     "answer": {"type": "string"},
                     "start_timestamp": {"type": "string", "pattern": "^[0-9]{2}:[0-9]{2}$", "description": "Timestamp in mm:ss format"},
-                    "end_timestamp": {"type": "string", "pattern": "^[0-9]{2}:[0-9]{2}$", "description": "Timestamp in mm:ss format"}
+                    "end_timestamp": {"type": "string", "pattern": "^[0-9]{2}:[0-9]{2}$", "description": "Timestamp in mm:ss format"},
+                    "num_frames": {"type": "string", "description": "Number of frames to sample", "enum": ["1", "4", "16"]}
                 },
                 "required": ["type"],
-                "propertyOrdering": ["type", "answer", "start_timestamp", "end_timestamp"]
+                "propertyOrdering": ["type", "answer", "start_timestamp", "end_timestamp", "num_frames"]
+            }
+        },
+        "required": ["reasoning", "decision"],
+        "propertyOrdering": ["reasoning", "decision"]
+    }
+
+    answer_more_frames_schema = {
+        "type": "object",
+        "properties": {
+            "reasoning": {"type": "string"},
+            "decision": {
+                "type": "object",
+                "properties": {
+                    "type": {"type": "string", "enum": ["answer", "more_frames"]},
+                    "answer": {"type": "string", "enum": ["Option A", "Option B", "Option C", "Option D", "Option E"]},
+                    "start_timestamp": {"type": "string", "pattern": "^[0-9]{2}:[0-9]{2}$", "description": "Timestamp in mm:ss format"},
+                    "end_timestamp": {"type": "string", "pattern": "^[0-9]{2}:[0-9]{2}$", "description": "Timestamp in mm:ss format"},
+                    "num_frames": {"type": "string", "description": "Number of frames to sample", "enum": ["1", "4", "16"]}
+                },
+                "required": ["type"],
+                "propertyOrdering": ["type", "answer", "start_timestamp", "end_timestamp", "num_frames"]
             }
         },
         "required": ["reasoning", "decision"],
@@ -85,17 +107,24 @@ def execute_dynamic_sampling_agent():
     system_prompt = (
         "You are a video analysis expert. Your task is to answer a question about a video based on the frames provided. "
         "Think step by step and analyze the visual content carefully. "
-        f"If you need more information, you can request specific segments of the video by providing start and end timestamps in mm:ss format. "
+        f"If you are even slightly unsure about the answer, you should request specific segments of the video by providing start and end timestamps in mm:ss format. "
         f"The valid range for timestamps is from 00:00 to {duration_str}. "
+        "You also need to specify how many frames to sample to trade off detail with context. "
+        "If you want to zoom in on a few frames to get more details choose a smaller number of frames. "
+        "Otherwise, choose a larger number of frames to get a broader context. "
+        "The valid number of frames to sample are 1, 4, or 16. "
         "If you have enough information to answer, provide your final answer with justification."
     )
     
     # Dynamic sampling loop
-    max_iterations = 5
+    max_iterations = 10
     prediction_result = -1
 
-    def answer_with_options(message_content):
-        message_content.append(f"{question_sentence}\n\nThink step by step and answer the question with one of the options (A, B, C, D, or E).")
+    def answer_with_options(message_content, allow_sample=False):
+        prompt = f"{question_sentence}\n\nThink step by step and answer the question with one of the options (A, B, C, D, or E)."
+        if allow_sample:
+            prompt += " If you are even slightly unsure about any of the options, you should sample more frames."
+        message_content.append(prompt)
         # Force a final answer on the last iteration
         response = client.models.generate_content(
             model=model_name,
@@ -128,10 +157,57 @@ def execute_dynamic_sampling_agent():
                     ),
                 ],
                 response_mime_type='application/json',
-                response_schema=final_answer_schema
+                response_schema=answer_more_frames_schema if allow_sample else final_answer_schema
             )
         )
         return response
+
+    def sample_more_frames(response_json):
+        # Extract timestamps for the next set of frames
+        start_timestamp = response_json["decision"]["start_timestamp"]
+        end_timestamp = response_json["decision"]["end_timestamp"]
+        
+        # Get number of frames to sample (default to 16 if not specified)
+        num_frames = 16
+        grid_size = (4, 4)
+        if "num_frames" in response_json["decision"]:
+            num_frames_str = response_json["decision"]["num_frames"]
+            num_frames = int(num_frames_str)
+            if num_frames == 1:
+                grid_size = (1, 1)
+            elif num_frames == 4:
+                grid_size = (2, 2)
+            elif num_frames == 16:
+                grid_size = (4, 4)
+        
+        print(f"Model requested {num_frames} frames from {start_timestamp} to {end_timestamp}")
+        
+        # Extract new frames based on the requested timestamps
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp_file:
+            collage_path = temp_file.name
+            success = extract_frames_to_collage(
+                video_path=video_path,
+                output_path=collage_path,
+                start_time=start_timestamp,
+                end_time=end_timestamp,
+                num_frames=num_frames,
+                grid_size=grid_size,
+                output_size=768
+            )
+            if not success:
+                error_message = f"Error: Iteration {iteration + 1} could not extract frames from {start_timestamp} to {end_timestamp} for video {video_path}"
+                print(error_message)
+                return -1, message_content + [error_message]
+            
+            # Load the new collage image
+            collage_image = Image.open(collage_path)
+            
+            # Update the prompt for the next iteration
+            user_prompt = [
+                f"Here are the {num_frames} frames from {start_timestamp} to {end_timestamp} that you requested. Please continue your analysis.",
+                collage_image
+            ]
+            message_content.append(user_prompt)
     
     for iteration in range(max_iterations):
         # For the first iteration, sample frames uniformly from the entire video
@@ -197,7 +273,7 @@ def execute_dynamic_sampling_agent():
                 )
             )
         else:
-            response = answer_with_options(message_content)
+            response = answer_with_options(message_content, allow_sample=False)
         
         # Process the response
         response_json = json.loads(response.text)
@@ -210,47 +286,21 @@ def execute_dynamic_sampling_agent():
         
         # Process based on response type
         if iteration < max_iterations - 1 and "decision" in response_json and response_json["decision"]["type"] == "more_frames":
-            # Extract timestamps for the next set of frames
-            start_timestamp = response_json["decision"]["start_timestamp"]
-            end_timestamp = response_json["decision"]["end_timestamp"]
-            
-            print(f"Model requested more frames from {start_timestamp} to {end_timestamp}")
-            
-            # Extract new frames based on the requested timestamps
-            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp_file:
-                collage_path = temp_file.name
-                success = extract_frames_to_collage(
-                    video_path=video_path,
-                    output_path=collage_path,
-                    start_time=start_timestamp,
-                    end_time=end_timestamp,
-                    num_frames=16,
-                    grid_size=(4, 4),
-                    output_size=768
-                )
-                if not success:
-                    error_message = f"Error: Iteration {iteration + 1} could not extract frames from {start_timestamp} to {end_timestamp} for video {video_path}"
-                    print(error_message)
-                    return -1, message_content + [error_message]
-                
-                # Load the new collage image
-                collage_image = Image.open(collage_path)
-                
-                # Update the prompt for the next iteration
-                user_prompt = [
-                    f"Here are the frames from {start_timestamp} to {end_timestamp} that you requested. Please continue your analysis.",
-                    collage_image
-                ]
-                message_content.append(user_prompt)
+            sample_more_frames(response_json)
         else:
             # Extract the final answer
             if iteration < max_iterations - 1:
                 answer = response_json["decision"]["answer"]
-                response = answer_with_options(message_content)
+                response = answer_with_options(message_content, allow_sample=True)
                 response_json = json.loads(response.text)
                 message_content.append(response.text)
-            
-            answer = response_json["answer"]
+                if response_json["decision"]["type"] == "answer":
+                    answer = response_json["decision"]["answer"]
+                else:
+                    sample_more_frames(response_json)
+                    continue
+            else:
+                answer = response_json["answer"]
             
             print(f"Final answer: {answer}")
             
@@ -261,7 +311,7 @@ def execute_dynamic_sampling_agent():
             # Clean up temporary files
             if os.path.exists(collage_path):
                 os.remove(collage_path)
-                
+            
             break
     
     # Print the final result
