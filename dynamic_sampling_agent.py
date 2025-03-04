@@ -53,6 +53,8 @@ def sanitize_message_content(message_content):
     return sanitized_content
 
 def execute_dynamic_sampling_agent(temperature=0):
+    max_iterations = int(os.getenv("MAX_ITERATIONS"))
+
     # Load question data and create question sentence
     target_question_data = json.loads(os.getenv("QA_JSON_STR"))
     question_sentence = create_question_sentence(target_question_data)
@@ -161,7 +163,6 @@ def execute_dynamic_sampling_agent(temperature=0):
     model_name = os.getenv("MODEL", "gemini-2.0-flash")
     
     # Dynamic sampling loop
-    max_iterations = 10
     prediction_result = -1
     asked_question = False
     
@@ -484,14 +485,19 @@ def main():
                        help="Number of worker processes. Defaults to CPU count - 1")
     parser.add_argument('--model', type=str, default="gemini-2.0-flash",
                        help="Model to use: gemini-2.0-flash or gpt-4o")
+    parser.add_argument('--max_iterations', type=int, default=10,
+                       help="Maximum number of dynamic sampling rounds")
+    parser.add_argument('--partition', type=str, default="subset",
+                       help="Partition to use: fullset, subset")
     args = parser.parse_args()
 
     # Set dataset-specific environment variables
     os.environ["DATASET"] = args.dataset
     os.environ["MODEL"] = args.model
-    
+    os.environ["MAX_ITERATIONS"] = str(args.max_iterations)
+
     if args.dataset == "egoschema":
-        os.environ["QUESTION_FILE_PATH"] = f"data/egoschema/fullset_dynamic_sampling_{args.model}.json"
+        os.environ["QUESTION_FILE_PATH"] = f"data/egoschema/{args.partition}_dynamic_sampling_{args.model}_max_iter_{args.max_iterations}.json"
         os.environ["VIDEO_DIR_PATH"] = "/simurgh/u/akhatua/VideoMultiAgents/data/egoschema"
         os.environ["VIDEO_DURATIONS"] = "data/egoschema/durations.json"
     elif args.dataset == "nextqa":
