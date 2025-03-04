@@ -42,11 +42,17 @@ def sanitize_message_content(message_content):
     for item in message_content:
         if isinstance(item, str):
             sanitized_content.append(item)
+        elif isinstance(item, list):
+            for i in item:
+                if isinstance(i, str):
+                    sanitized_content.append(i)
+                else:
+                    sanitized_content.append(str(i))
         else:
-            sanitized_content.append("<image>")
+            sanitized_content.append(str(item))
     return sanitized_content
 
-def execute_dynamic_sampling_agent():
+def execute_dynamic_sampling_agent(temperature=0):
     # Load question data and create question sentence
     target_question_data = json.loads(os.getenv("QA_JSON_STR"))
     question_sentence = create_question_sentence(target_question_data)
@@ -136,8 +142,11 @@ def execute_dynamic_sampling_agent():
     }
     
     # Initial prompt
+    system_prompt_role = "You are a video analysis expert. Your task is to answer a question about a first-person video based on the frames provided. In the question, C refers to the camera wearer." \
+         if os.getenv("DATASET") == "egoschema" else \
+        "You are a video analysis expert. Your task is to analyze a video and provide a detailed description of the visual content. "
     system_prompt = (
-        "You are a video analysis expert. Your task is to answer a question about a video based on the frames provided. "
+        system_prompt_role +
         "Think step by step and analyze the visual content carefully. "
         f"If you are unsure about the answer, you should request specific segments of the video by providing start and end timestamps in mm:ss format. "
         f"The valid range for timestamps is from 00:00 to {duration_str}. "
@@ -154,6 +163,7 @@ def execute_dynamic_sampling_agent():
     # Dynamic sampling loop
     max_iterations = 10
     prediction_result = -1
+    asked_question = False
     
     # Initialize appropriate client based on model
     if "gemini" in model_name:
@@ -184,7 +194,7 @@ def execute_dynamic_sampling_agent():
                         img_str = base64.b64encode(buffered.getvalue()).decode()
                         content_parts.append({
                             "type": "image_url",
-                            "image_url": {"url": f"data:image/png;base64,{img_str}", "detail": "low"}
+                            "image_url": {"url": f"data:image/png;base64,{img_str}", "detail": "high"}
                         })
                 if content_parts:
                     formatted_messages.append({"role": "user", "content": content_parts})
@@ -195,7 +205,13 @@ def execute_dynamic_sampling_agent():
 
 
     def answer_with_options(message_content, allow_sample=False):
-        prompt = f"{question_sentence}\n\nThink step by step and answer the question with one of the options (A, B, C, D, or E)."
+        nonlocal asked_question
+        if asked_question:
+            prompt = ''
+        else:
+            prompt = f'{question_sentence}\n\n'
+            asked_question = True
+        prompt += f"Think step by step and answer the question with one of the options (A, B, C, D, or E)."
         if allow_sample:
             prompt += " If you are unsure about any of the options, you should sample more frames."
         message_content.append(prompt)
@@ -207,7 +223,7 @@ def execute_dynamic_sampling_agent():
                 contents=message_content,
                 config=types.GenerateContentConfig(
                     max_output_tokens=3000,
-                    temperature=0.7,
+                    temperature=temperature,
                     seed=42,
                     system_instruction=system_prompt,
                     safety_settings=gemini_safety_settings,
@@ -221,7 +237,7 @@ def execute_dynamic_sampling_agent():
             response = client.chat.completions.create(
                 model=model_name,
                 messages=formatted_messages,
-                temperature=0.7,
+                temperature=temperature,
                 seed=42,
                 response_format={ "type": "json_schema", "json_schema": {"name": "answer_more_frames" if allow_sample else "final_answer",
                                                                          "strict": True, "schema": get_answer_more_frames_schema(supports_pattern=False) if allow_sample else final_answer_schema}},
@@ -281,7 +297,7 @@ def execute_dynamic_sampling_agent():
             
             # Update the prompt for the next iteration
             user_prompt = [
-                f"Here are the {num_frames} frames from {start_timestamp} to {end_timestamp} that you requested. Please continue your analysis.",
+                f"Here are the {num_frames} uniformly sampled frames from {start_timestamp} to {end_timestamp} that you requested. Please continue your analysis.",
                 collage_image
             ]
             message_content.append(user_prompt)
@@ -310,7 +326,7 @@ def execute_dynamic_sampling_agent():
                 
                 # Create the prompt for the first iteration
                 user_prompt = [
-                    f'{target_question_data["question"]}\n\nThese are uniformly sampled frames from the 00:00 to {duration_str}. Analyze them carefully.',
+                    f'{target_question_data["question"]}\n\nHere are 16 uniformly sampled frames from the 00:00 to {duration_str}. Analyze them carefully.',
                     collage_image
                 ]
                 message_content.append(user_prompt)
@@ -323,12 +339,12 @@ def execute_dynamic_sampling_agent():
                     contents=message_content,
                     config=types.GenerateContentConfig(
                         max_output_tokens=3000,
-                        temperature=0.7,
+                        temperature=temperature,
                         seed=42,
                         system_instruction=system_prompt,
                         safety_settings=gemini_safety_settings,
                         response_mime_type='application/json',
-                        response_schema=get_analysis_schema(supports_pattern=True)
+                        response_schema=get_answer_more_frames_schema(supports_pattern=True) if asked_question else get_analysis_schema(supports_pattern=True)
                     )
                 )
             else:  # OpenAI models
@@ -336,9 +352,10 @@ def execute_dynamic_sampling_agent():
                 response = client.chat.completions.create(
                     model=model_name,
                     messages=formatted_messages,
-                    temperature=0.7,
+                    temperature=temperature,
                     seed=42,
-                    response_format={ "type": "json_schema", "json_schema": {"name": "analysis", "strict": True, "schema": get_analysis_schema(supports_pattern=False)}},
+                    response_format={ "type": "json_schema", "json_schema": {"name": "analysis", "strict": True, "schema":
+                                                                             get_answer_more_frames_schema(supports_pattern=False) if asked_question else get_analysis_schema(supports_pattern=False)}},
                     max_tokens=3000
                 )
                 print(f"Prompt tokens: {response.usage.prompt_tokens}")
@@ -371,14 +388,15 @@ def execute_dynamic_sampling_agent():
             # Extract the final answer
             if iteration < max_iterations - 1:
                 answer = response_json["decision"]["answer"]
-                response = answer_with_options(message_content, allow_sample=True)
-                response_json = json.loads(response.text)
-                message_content.append(response.text)
-                if response_json["decision"]["type"] == "answer":
-                    answer = response_json["decision"]["answer"]
-                else:
-                    sample_more_frames(response_json)
-                    continue
+                if not asked_question:
+                    response = answer_with_options(message_content, allow_sample=True)
+                    response_json = json.loads(response.text)
+                    message_content.append(response.text)
+                    if response_json["decision"]["type"] == "answer":
+                        answer = response_json["decision"]["answer"]
+                    else:
+                        sample_more_frames(response_json)
+                        continue
             else:
                 answer = response_json["answer"]
             
@@ -473,7 +491,7 @@ def main():
     os.environ["MODEL"] = args.model
     
     if args.dataset == "egoschema":
-        os.environ["QUESTION_FILE_PATH"] = f"data/egoschema/subset_dynamic_sampling_{args.model}.json"
+        os.environ["QUESTION_FILE_PATH"] = f"data/egoschema/fullset_dynamic_sampling_{args.model}.json"
         os.environ["VIDEO_DIR_PATH"] = "/simurgh/u/akhatua/VideoMultiAgents/data/egoschema"
         os.environ["VIDEO_DURATIONS"] = "data/egoschema/durations.json"
     elif args.dataset == "nextqa":
