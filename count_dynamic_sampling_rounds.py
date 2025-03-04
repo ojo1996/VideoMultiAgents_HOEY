@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import re
 from collections import Counter
+import datetime
 
 # Load the JSON file
 with open('data/egoschema/subset_dynamic_sampling_gpt-4o.json', 'r') as f:
@@ -12,6 +13,8 @@ with open('data/egoschema/subset_dynamic_sampling_gpt-4o.json', 'r') as f:
 image_counts = []
 image_counts_after_first = []  # Count images after first question
 num_frames_counts = []  # Count num_frames in more_frames decisions
+start_timestamps = []  # Store start_timestamp values
+end_timestamps = []    # Store end_timestamp values
 
 for item_id, item in data.items():
     if "pred" in item:
@@ -40,6 +43,12 @@ for item_id, item in data.items():
                     if "decision" in response_json and response_json["decision"]["type"] == "more_frames":
                         num_frames = response_json["decision"]["num_frames"]
                         num_frames_counts.append(int(num_frames))
+                        
+                        # Extract timestamps if they exist
+                        if "start_timestamp" in response_json["decision"]:
+                            start_timestamps.append(response_json["decision"]["start_timestamp"])
+                        if "end_timestamp" in response_json["decision"]:
+                            end_timestamps.append(response_json["decision"]["end_timestamp"])
                 except (json.JSONDecodeError, KeyError):
                     pass
         
@@ -146,4 +155,56 @@ plt.legend()
 
 # Save the plot
 plt.savefig('num_frames_distribution.png')
+plt.show()
+
+# Function to convert timestamp to seconds
+def timestamp_to_seconds(timestamp):
+    # Handle different timestamp formats
+    if ':' in timestamp:
+        parts = timestamp.split(':')
+        if len(parts) == 2:  # mm:ss format
+            return int(parts[0]) * 60 + float(parts[1])
+        elif len(parts) == 3:  # hh:mm:ss format
+            return int(parts[0]) * 3600 + int(parts[1]) * 60 + float(parts[2])
+    return float(timestamp)  # Assume it's already in seconds
+
+# Convert timestamps to seconds
+start_seconds = [timestamp_to_seconds(ts) for ts in start_timestamps]
+end_seconds = [timestamp_to_seconds(ts) for ts in end_timestamps]
+
+# Plot distribution of timestamps
+plt.figure(figsize=(12, 6))
+
+# Create histograms for start and end timestamps
+bins = np.linspace(0, 180, 37)  # 5-second bins from 0 to 180 seconds (3 minutes)
+start_hist, _ = np.histogram(start_seconds, bins=bins)
+end_hist, _ = np.histogram(end_seconds, bins=bins)
+
+# Calculate percentages
+start_percentage = 100 * start_hist / len(start_seconds) if len(start_seconds) > 0 else start_hist
+end_percentage = 100 * end_hist / len(end_seconds) if len(end_seconds) > 0 else end_hist
+
+# Plot histograms side by side (not overlapping)
+bar_width = (bins[1]-bins[0]) * 0.4  # Make bars narrower
+bar_positions_start = bins[:-1]  # Position for start bars
+bar_positions_end = bins[:-1] + bar_width  # Position for end bars slightly to the right
+
+plt.bar(bar_positions_start, start_percentage, width=bar_width, color='blue', label='Start Timestamps')
+plt.bar(bar_positions_end, end_percentage, width=bar_width, color='red', label='End Timestamps')
+
+# Add labels and title
+plt.xlabel('Time (seconds)')
+plt.ylabel('Percentage (%)')
+plt.title('Distribution of Start and End Timestamps in more_frames Decisions')
+
+# Create custom x-ticks in mm:ss format
+x_ticks = np.arange(0, 181, 15)  # Every 15 seconds
+x_labels = [f"{int(x//60):02d}:{int(x%60):02d}" for x in x_ticks]
+plt.xticks(x_ticks, x_labels)
+
+plt.grid(axis='y', alpha=0.3)
+plt.legend()
+
+# Save the plot
+plt.savefig('timestamp_distribution.png')
 plt.show()
