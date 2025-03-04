@@ -13,6 +13,30 @@ import argparse
 from util import read_json_file, set_environment_variables, save_result
 import openai
 
+gemini_safety_settings = [
+    types.SafetySetting(
+        category='HARM_CATEGORY_HATE_SPEECH',
+        threshold='BLOCK_NONE'
+    ),
+    types.SafetySetting(
+        category='HARM_CATEGORY_HARASSMENT',
+        threshold='BLOCK_NONE'
+    ),
+    types.SafetySetting(
+        category='HARM_CATEGORY_SEXUALLY_EXPLICIT',
+        threshold='BLOCK_NONE'
+    ),
+    types.SafetySetting(
+        category='HARM_CATEGORY_DANGEROUS_CONTENT',
+        threshold='BLOCK_NONE'
+    ),
+    types.SafetySetting(
+        category='HARM_CATEGORY_CIVIC_INTEGRITY',
+        threshold='BLOCK_NONE'
+    ),
+]
+
+
 def sanitize_message_content(message_content):
     sanitized_content = []
     for item in message_content:
@@ -137,6 +161,39 @@ def execute_dynamic_sampling_agent():
     else:  # OpenAI models
         client = openai.Client(api_key=os.getenv("OPENAI_API_KEY"))
 
+    
+    def format_message_for_openai(message_content):
+        formatted_messages = [{"role": "developer", "content": system_prompt}]
+        for item in message_content:
+            if isinstance(item, str) and item.startswith("{"):
+                # This is a JSON response from the model
+                formatted_messages.append({"role": "assistant", "content": item})
+            elif isinstance(item, str):
+                formatted_messages.append({"role": "user", "content": item})
+            elif isinstance(item, list) and len(item) > 0:
+                content_parts = []
+                for part in item:
+                    if isinstance(part, str):
+                        content_parts.append({"type": "text", "text": part})
+                    elif hasattr(part, 'mode') and part.mode == 'RGB':  # PIL Image
+                        # Convert PIL image to base64
+                        import base64
+                        import io
+                        buffered = io.BytesIO()
+                        part.save(buffered, format="PNG")
+                        img_str = base64.b64encode(buffered.getvalue()).decode()
+                        content_parts.append({
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/png;base64,{img_str}", "detail": "low"}
+                        })
+                if content_parts:
+                    formatted_messages.append({"role": "user", "content": content_parts})
+        
+        # print(message_content)
+        # print(formatted_messages)
+        return formatted_messages
+
+
     def answer_with_options(message_content, allow_sample=False):
         prompt = f"{question_sentence}\n\nThink step by step and answer the question with one of the options (A, B, C, D, or E)."
         if allow_sample:
@@ -153,60 +210,14 @@ def execute_dynamic_sampling_agent():
                     temperature=0.7,
                     seed=42,
                     system_instruction=system_prompt,
-                    safety_settings= [
-                        types.SafetySetting(
-                            category='HARM_CATEGORY_HATE_SPEECH',
-                            threshold='BLOCK_NONE'
-                        ),
-                        types.SafetySetting(
-                            category='HARM_CATEGORY_HARASSMENT',
-                            threshold='BLOCK_NONE'
-                        ),
-                        types.SafetySetting(
-                            category='HARM_CATEGORY_SEXUALLY_EXPLICIT',
-                            threshold='BLOCK_NONE'
-                        ),
-                        types.SafetySetting(
-                            category='HARM_CATEGORY_DANGEROUS_CONTENT',
-                            threshold='BLOCK_NONE'
-                        ),
-                        types.SafetySetting(
-                            category='HARM_CATEGORY_CIVIC_INTEGRITY',
-                            threshold='BLOCK_NONE'
-                        ),
-                    ],
+                    safety_settings=gemini_safety_settings,
                     response_mime_type='application/json',
                     response_schema=get_answer_more_frames_schema(supports_pattern=True) if allow_sample else final_answer_schema
                 )
             )
             return response
         else:  # OpenAI models
-            formatted_messages = [{"role": "system", "content": system_prompt}]
-            for item in message_content:
-                if isinstance(item, str):
-                    formatted_messages.append({"role": "user", "content": item})
-                elif isinstance(item, list) and len(item) > 0:
-                    content_parts = []
-                    for part in item:
-                        if isinstance(part, str):
-                            content_parts.append({"type": "text", "text": part})
-                        elif hasattr(part, 'mode') and part.mode == 'RGB':  # PIL Image
-                            # Convert PIL image to base64
-                            import base64
-                            import io
-                            buffered = io.BytesIO()
-                            part.save(buffered, format="PNG")
-                            img_str = base64.b64encode(buffered.getvalue()).decode()
-                            content_parts.append({
-                                "type": "image_url",
-                                "image_url": {"url": f"data:image/png;base64,{img_str}", "detail": "high" }
-                            })
-                    if content_parts:
-                        formatted_messages.append({"role": "user", "content": content_parts})
-                elif isinstance(item, str) and item.startswith("{") and item.endswith("}"):
-                    # This is a JSON response from the model
-                    formatted_messages.append({"role": "assistant", "content": item})
-            
+            formatted_messages = format_message_for_openai(message_content)
             response = client.chat.completions.create(
                 model=model_name,
                 messages=formatted_messages,
@@ -216,6 +227,10 @@ def execute_dynamic_sampling_agent():
                                                                          "strict": True, "schema": get_answer_more_frames_schema(supports_pattern=False) if allow_sample else final_answer_schema}},
                 max_tokens=3000,
             )
+            print(f"Prompt tokens: {response.usage.prompt_tokens}")
+            print(f'Cached prompt tokens: {response.usage.prompt_tokens_details.cached_tokens}')
+            print(f"Completion tokens: {response.usage.completion_tokens}")
+            print(f"Total tokens: {response.usage.total_tokens}")
             
             # Create a response object similar to Gemini's for consistent handling
             class OpenAIResponse:
@@ -271,6 +286,8 @@ def execute_dynamic_sampling_agent():
             ]
             message_content.append(user_prompt)
     
+
+    message_content = []
     for iteration in range(max_iterations):
         # For the first iteration, sample frames uniformly from the entire video
         if iteration == 0:
@@ -296,7 +313,7 @@ def execute_dynamic_sampling_agent():
                     f'{target_question_data["question"]}\n\nThese are uniformly sampled frames from the 00:00 to {duration_str}. Analyze them carefully.',
                     collage_image
                 ]
-                message_content = user_prompt
+                message_content.append(user_prompt)
 
         # Generate response with appropriate schema
         if iteration < max_iterations - 1:
@@ -309,60 +326,14 @@ def execute_dynamic_sampling_agent():
                         temperature=0.7,
                         seed=42,
                         system_instruction=system_prompt,
-                        safety_settings= [
-                            types.SafetySetting(
-                                category='HARM_CATEGORY_HATE_SPEECH',
-                                threshold='BLOCK_NONE'
-                            ),
-                            types.SafetySetting(
-                                category='HARM_CATEGORY_HARASSMENT',
-                                threshold='BLOCK_NONE'
-                            ),
-                            types.SafetySetting(
-                                category='HARM_CATEGORY_SEXUALLY_EXPLICIT',
-                                threshold='BLOCK_NONE'
-                            ),
-                            types.SafetySetting(
-                                category='HARM_CATEGORY_DANGEROUS_CONTENT',
-                                threshold='BLOCK_NONE'
-                            ),
-                            types.SafetySetting(
-                                category='HARM_CATEGORY_CIVIC_INTEGRITY',
-                                threshold='BLOCK_NONE'
-                            ),
-                        ],
+                        safety_settings=gemini_safety_settings,
                         response_mime_type='application/json',
                         response_schema=get_analysis_schema(supports_pattern=True)
                     )
                 )
             else:  # OpenAI models
-                formatted_messages = [{"role": "system", "content": system_prompt}]
-                for item in message_content:
-                    if isinstance(item, str):
-                        formatted_messages.append({"role": "user", "content": item})
-                    elif isinstance(item, list) and len(item) > 0:
-                        content_parts = []
-                        for part in item:
-                            if isinstance(part, str):
-                                content_parts.append({"type": "text", "text": part})
-                            elif hasattr(part, 'mode') and part.mode == 'RGB':  # PIL Image
-                                # Convert PIL image to base64
-                                import base64
-                                import io
-                                buffered = io.BytesIO()
-                                part.save(buffered, format="PNG")
-                                img_str = base64.b64encode(buffered.getvalue()).decode()
-                                content_parts.append({
-                                    "type": "image_url",
-                                    "image_url": {"url": f"data:image/png;base64,{img_str}", "detail": "high"}
-                                })
-                        if content_parts:
-                            formatted_messages.append({"role": "user", "content": content_parts})
-                    elif isinstance(item, str) and item.startswith("{") and item.endswith("}"):
-                        # This is a JSON response from the model
-                        formatted_messages.append({"role": "assistant", "content": item})
-                
-                response_obj = client.chat.completions.create(
+                formatted_messages = format_message_for_openai(message_content)
+                response = client.chat.completions.create(
                     model=model_name,
                     messages=formatted_messages,
                     temperature=0.7,
@@ -370,13 +341,17 @@ def execute_dynamic_sampling_agent():
                     response_format={ "type": "json_schema", "json_schema": {"name": "analysis", "strict": True, "schema": get_analysis_schema(supports_pattern=False)}},
                     max_tokens=3000
                 )
+                print(f"Prompt tokens: {response.usage.prompt_tokens}")
+                print(f'Cached prompt tokens: {response.usage.prompt_tokens_details.cached_tokens}')
+                print(f"Completion tokens: {response.usage.completion_tokens}")
+                print(f"Total tokens: {response.usage.total_tokens}")
                 
                 # Create a response object similar to Gemini's for consistent handling
                 class OpenAIResponse:
                     def __init__(self, text):
                         self.text = text
                 
-                response = OpenAIResponse(response_obj.choices[0].message.content)
+                response = OpenAIResponse(response.choices[0].message.content)
         else:
             response = answer_with_options(message_content, allow_sample=False)
         
