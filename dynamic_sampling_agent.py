@@ -11,6 +11,7 @@ from multiprocessing import Pool, cpu_count
 from functools import partial
 import argparse
 from util import read_json_file, set_environment_variables, save_result
+import openai
 
 def sanitize_message_content(message_content):
     sanitized_content = []
@@ -46,51 +47,57 @@ def execute_dynamic_sampling_agent():
     seconds = int(video_duration_seconds % 60)
     duration_str = f"{minutes:02d}:{seconds:02d}"
     
-    # Configure Gemini API
-    client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
-    model_name = 'gemini-2.0-flash'
-    
     # Define JSON schemas for responses
-    analysis_schema = {
-        "type": "object",
-        "properties": {
-            "reasoning": {"type": "string"},
-            "decision": {
-                "type": "object",
-                "properties": {
-                    "type": {"type": "string", "enum": ["answer", "more_frames"]},
-                    "answer": {"type": "string"},
-                    "start_timestamp": {"type": "string", "pattern": "^[0-9]{2}:[0-9]{2}$", "description": "Timestamp in mm:ss format"},
-                    "end_timestamp": {"type": "string", "pattern": "^[0-9]{2}:[0-9]{2}$", "description": "Timestamp in mm:ss format"},
-                    "num_frames": {"type": "string", "description": "Number of frames to sample", "enum": ["1", "4", "16"]}
-                },
-                "required": ["type"],
-                "propertyOrdering": ["type", "answer", "start_timestamp", "end_timestamp", "num_frames"]
-            }
-        },
-        "required": ["reasoning", "decision"],
-        "propertyOrdering": ["reasoning", "decision"]
-    }
+    def get_analysis_schema(supports_pattern=True):
+        return {
+            "type": "object",
+            "properties": {
+                "reasoning": {"type": "string"},
+                "decision": {
+                    "type": "object",
+                    "properties": {
+                        "type": {"type": "string", "enum": ["answer", "more_frames"]},
+                        "answer": {"type": ["string", "null"]},
+                        "start_timestamp": {"type": ["string", "null"], "pattern": "^[0-9]{2}:[0-9]{2}$", "description": "Timestamp in mm:ss format"}
+                            if supports_pattern else {"type": "string", "description": "Timestamp in mm:ss format"},
+                        "end_timestamp": {"type": ["string", "null"], "pattern": "^[0-9]{2}:[0-9]{2}$", "description": "Timestamp in mm:ss format"}
+                            if supports_pattern else {"type": "string", "description": "Timestamp in mm:ss format"},
+                        "num_frames": {"type": ["string", "null"], "description": "Number of frames to sample", "enum": ["1", "4", "16"]}
+                    },
+                    "required": ["type", "answer", "start_timestamp", "end_timestamp", "num_frames"],
+                    "propertyOrdering": ["type", "answer", "start_timestamp", "end_timestamp", "num_frames"],
+                    "additionalProperties": False,
+                }
+            },
+            "required": ["reasoning", "decision"],
+            "propertyOrdering": ["reasoning", "decision"],
+            "additionalProperties": False
+        }
 
-    answer_more_frames_schema = {
-        "type": "object",
-        "properties": {
-            "reasoning": {"type": "string"},
+    def get_answer_more_frames_schema(supports_pattern=True):
+        return {
+            "type": "object",
+            "properties": {
+                "reasoning": {"type": "string"},
             "decision": {
                 "type": "object",
                 "properties": {
                     "type": {"type": "string", "enum": ["answer", "more_frames"]},
-                    "answer": {"type": "string", "enum": ["Option A", "Option B", "Option C", "Option D", "Option E"]},
-                    "start_timestamp": {"type": "string", "pattern": "^[0-9]{2}:[0-9]{2}$", "description": "Timestamp in mm:ss format"},
-                    "end_timestamp": {"type": "string", "pattern": "^[0-9]{2}:[0-9]{2}$", "description": "Timestamp in mm:ss format"},
-                    "num_frames": {"type": "string", "description": "Number of frames to sample", "enum": ["1", "4", "16"]}
+                    "answer": {"type": ["string", "null"], "enum": ["Option A", "Option B", "Option C", "Option D", "Option E"]},
+                    "start_timestamp": {"type": ["string", "null"], "pattern": "^[0-9]{2}:[0-9]{2}$", "description": "Timestamp in mm:ss format"}
+                        if supports_pattern else {"type": "string", "description": "Timestamp in mm:ss format"},
+                    "end_timestamp": {"type": ["string", "null"], "pattern": "^[0-9]{2}:[0-9]{2}$", "description": "Timestamp in mm:ss format"}
+                        if supports_pattern else {"type": "string", "description": "Timestamp in mm:ss format"},
+                    "num_frames": {"type": ["string", "null"], "description": "Number of frames to sample", "enum": ["1", "4", "16"]}
                 },
-                "required": ["type"],
-                "propertyOrdering": ["type", "answer", "start_timestamp", "end_timestamp", "num_frames"]
+                "required": ["type", "answer", "start_timestamp", "end_timestamp", "num_frames"],
+                "propertyOrdering": ["type", "answer", "start_timestamp", "end_timestamp", "num_frames"],
+                "additionalProperties": False,
             }
         },
         "required": ["reasoning", "decision"],
-        "propertyOrdering": ["reasoning", "decision"]
+        "propertyOrdering": ["reasoning", "decision"],
+        "additionalProperties": False
     }
     
     final_answer_schema = {
@@ -100,14 +107,15 @@ def execute_dynamic_sampling_agent():
             "answer": {"type": "string", "enum": ["Option A", "Option B", "Option C", "Option D", "Option E"]}
         },
         "required": ["reasoning", "answer"],
-        "propertyOrdering": ["reasoning", "answer"]
+        "propertyOrdering": ["reasoning", "answer"],
+        "additionalProperties": False
     }
     
     # Initial prompt
     system_prompt = (
         "You are a video analysis expert. Your task is to answer a question about a video based on the frames provided. "
         "Think step by step and analyze the visual content carefully. "
-        f"If you are even slightly unsure about the answer, you should request specific segments of the video by providing start and end timestamps in mm:ss format. "
+        f"If you are unsure about the answer, you should request specific segments of the video by providing start and end timestamps in mm:ss format. "
         f"The valid range for timestamps is from 00:00 to {duration_str}. "
         "You also need to specify how many frames to sample to trade off detail with context. "
         "If you want to zoom in on a few frames to get more details choose a smaller number of frames. "
@@ -116,128 +124,27 @@ def execute_dynamic_sampling_agent():
         "If you have enough information to answer, provide your final answer with justification."
     )
     
+    # Get model name from environment or use default
+    model_name = os.getenv("MODEL", "gemini-2.0-flash")
+    
     # Dynamic sampling loop
     max_iterations = 10
     prediction_result = -1
+    
+    # Initialize appropriate client based on model
+    if "gemini" in model_name:
+        client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+    else:  # OpenAI models
+        client = openai.Client(api_key=os.getenv("OPENAI_API_KEY"))
 
     def answer_with_options(message_content, allow_sample=False):
         prompt = f"{question_sentence}\n\nThink step by step and answer the question with one of the options (A, B, C, D, or E)."
         if allow_sample:
-            prompt += " If you are even slightly unsure about any of the options, you should sample more frames."
+            prompt += " If you are unsure about any of the options, you should sample more frames."
         message_content.append(prompt)
+        
         # Force a final answer on the last iteration
-        response = client.models.generate_content(
-            model=model_name,
-            contents=message_content,
-            config=types.GenerateContentConfig(
-                max_output_tokens=3000,
-                temperature=0.7,
-                seed=42,
-                system_instruction=system_prompt,
-                safety_settings= [
-                    types.SafetySetting(
-                        category='HARM_CATEGORY_HATE_SPEECH',
-                        threshold='BLOCK_NONE'
-                    ),
-                    types.SafetySetting(
-                        category='HARM_CATEGORY_HARASSMENT',
-                        threshold='BLOCK_NONE'
-                    ),
-                    types.SafetySetting(
-                        category='HARM_CATEGORY_SEXUALLY_EXPLICIT',
-                        threshold='BLOCK_NONE'
-                    ),
-                    types.SafetySetting(
-                        category='HARM_CATEGORY_DANGEROUS_CONTENT',
-                        threshold='BLOCK_NONE'
-                    ),
-                    types.SafetySetting(
-                        category='HARM_CATEGORY_CIVIC_INTEGRITY',
-                        threshold='BLOCK_NONE'
-                    ),
-                ],
-                response_mime_type='application/json',
-                response_schema=answer_more_frames_schema if allow_sample else final_answer_schema
-            )
-        )
-        return response
-
-    def sample_more_frames(response_json):
-        # Extract timestamps for the next set of frames
-        start_timestamp = response_json["decision"]["start_timestamp"]
-        end_timestamp = response_json["decision"]["end_timestamp"]
-        
-        # Get number of frames to sample (default to 16 if not specified)
-        num_frames = 16
-        grid_size = (4, 4)
-        if "num_frames" in response_json["decision"]:
-            num_frames_str = response_json["decision"]["num_frames"]
-            num_frames = int(num_frames_str)
-            if num_frames == 1:
-                grid_size = (1, 1)
-            elif num_frames == 4:
-                grid_size = (2, 2)
-            elif num_frames == 16:
-                grid_size = (4, 4)
-        
-        print(f"Model requested {num_frames} frames from {start_timestamp} to {end_timestamp}")
-        
-        # Extract new frames based on the requested timestamps
-        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp_file:
-            collage_path = temp_file.name
-            success = extract_frames_to_collage(
-                video_path=video_path,
-                output_path=collage_path,
-                start_time=start_timestamp,
-                end_time=end_timestamp,
-                num_frames=num_frames,
-                grid_size=grid_size,
-                output_size=768
-            )
-            if not success:
-                error_message = f"Error: Iteration {iteration + 1} could not extract frames from {start_timestamp} to {end_timestamp} for video {video_path}"
-                print(error_message)
-                return -1, message_content + [error_message]
-            
-            # Load the new collage image
-            collage_image = Image.open(collage_path)
-            
-            # Update the prompt for the next iteration
-            user_prompt = [
-                f"Here are the {num_frames} frames from {start_timestamp} to {end_timestamp} that you requested. Please continue your analysis.",
-                collage_image
-            ]
-            message_content.append(user_prompt)
-    
-    for iteration in range(max_iterations):
-        # For the first iteration, sample frames uniformly from the entire video
-        if iteration == 0:
-            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp_file:
-                collage_path = temp_file.name
-                success = extract_frames_to_collage(
-                    video_path=video_path,
-                    output_path=collage_path,
-                    num_frames=16,
-                    grid_size=(4, 4),
-                    output_size=768
-                )
-                if not success:
-                    error_message = f"Error: Iteration {iteration + 1} could not extract frames from 00:00 to {duration_str} for video {video_path}"
-                    print(error_message)
-                    return -1, [error_message]
-                
-                # Load the collage image
-                collage_image = Image.open(collage_path)
-                
-                # Create the prompt for the first iteration
-                user_prompt = [
-                    f'{target_question_data["question"]}\n\nThese are uniformly sampled frames from the 00:00 to {duration_str}. Analyze them carefully.',
-                    collage_image
-                ]
-                message_content = user_prompt
-
-        # Generate response with appropriate schema
-        if iteration < max_iterations - 1:
+        if "gemini" in model_name:
             response = client.models.generate_content(
                 model=model_name,
                 contents=message_content,
@@ -269,9 +176,207 @@ def execute_dynamic_sampling_agent():
                         ),
                     ],
                     response_mime_type='application/json',
-                    response_schema=analysis_schema
+                    response_schema=get_answer_more_frames_schema(supports_pattern=True) if allow_sample else final_answer_schema
                 )
             )
+            return response
+        else:  # OpenAI models
+            formatted_messages = [{"role": "system", "content": system_prompt}]
+            for item in message_content:
+                if isinstance(item, str):
+                    formatted_messages.append({"role": "user", "content": item})
+                elif isinstance(item, list) and len(item) > 0:
+                    content_parts = []
+                    for part in item:
+                        if isinstance(part, str):
+                            content_parts.append({"type": "text", "text": part})
+                        elif hasattr(part, 'mode') and part.mode == 'RGB':  # PIL Image
+                            # Convert PIL image to base64
+                            import base64
+                            import io
+                            buffered = io.BytesIO()
+                            part.save(buffered, format="PNG")
+                            img_str = base64.b64encode(buffered.getvalue()).decode()
+                            content_parts.append({
+                                "type": "image_url",
+                                "image_url": {"url": f"data:image/png;base64,{img_str}", "detail": "high" }
+                            })
+                    if content_parts:
+                        formatted_messages.append({"role": "user", "content": content_parts})
+                elif isinstance(item, str) and item.startswith("{") and item.endswith("}"):
+                    # This is a JSON response from the model
+                    formatted_messages.append({"role": "assistant", "content": item})
+            
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=formatted_messages,
+                temperature=0.7,
+                seed=42,
+                response_format={ "type": "json_schema", "json_schema": {"name": "answer_more_frames" if allow_sample else "final_answer",
+                                                                         "strict": True, "schema": get_answer_more_frames_schema(supports_pattern=False) if allow_sample else final_answer_schema}},
+                max_tokens=3000,
+            )
+            
+            # Create a response object similar to Gemini's for consistent handling
+            class OpenAIResponse:
+                def __init__(self, text):
+                    self.text = text
+            
+            return OpenAIResponse(response.choices[0].message.content)
+
+    def sample_more_frames(response_json):
+        # Extract timestamps for the next set of frames
+        start_timestamp = response_json["decision"]["start_timestamp"]
+        end_timestamp = response_json["decision"]["end_timestamp"]
+        
+        # Get number of frames to sample (default to 16 if not specified)
+        num_frames = 16
+        grid_size = (4, 4)
+        if "num_frames" in response_json["decision"]:
+            num_frames_str = response_json["decision"]["num_frames"]
+            num_frames = int(num_frames_str)
+            if num_frames == 1:
+                grid_size = (1, 1)
+            elif num_frames == 4:
+                grid_size = (2, 2)
+            elif num_frames == 16:
+                grid_size = (4, 4)
+        
+        print(f"Model requested {num_frames} frames from {start_timestamp} to {end_timestamp}")
+        
+        # Extract new frames based on the requested timestamps
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp_file:
+            collage_path = temp_file.name
+            success = extract_frames_to_collage(
+                video_path=video_path,
+                output_path=collage_path,
+                start_time=start_timestamp,
+                end_time=end_timestamp,
+                num_frames=num_frames,
+                grid_size=grid_size,
+                output_size=768 if "gemini" in model_name else 512
+            )
+            if not success:
+                error_message = f"Error: Iteration {iteration + 1} could not extract frames from {start_timestamp} to {end_timestamp} for video {video_path}"
+                print(error_message)
+                return -1, message_content + [error_message]
+            
+            # Load the new collage image
+            collage_image = Image.open(collage_path)
+            
+            # Update the prompt for the next iteration
+            user_prompt = [
+                f"Here are the {num_frames} frames from {start_timestamp} to {end_timestamp} that you requested. Please continue your analysis.",
+                collage_image
+            ]
+            message_content.append(user_prompt)
+    
+    for iteration in range(max_iterations):
+        # For the first iteration, sample frames uniformly from the entire video
+        if iteration == 0:
+            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp_file:
+                collage_path = temp_file.name
+                success = extract_frames_to_collage(
+                    video_path=video_path,
+                    output_path=collage_path,
+                    num_frames=16,
+                    grid_size=(4, 4),
+                    output_size=768 if "gemini" in model_name else 512
+                )
+                if not success:
+                    error_message = f"Error: Iteration {iteration + 1} could not extract frames from 00:00 to {duration_str} for video {video_path}"
+                    print(error_message)
+                    return -1, [error_message]
+                
+                # Load the collage image
+                collage_image = Image.open(collage_path)
+                
+                # Create the prompt for the first iteration
+                user_prompt = [
+                    f'{target_question_data["question"]}\n\nThese are uniformly sampled frames from the 00:00 to {duration_str}. Analyze them carefully.',
+                    collage_image
+                ]
+                message_content = user_prompt
+
+        # Generate response with appropriate schema
+        if iteration < max_iterations - 1:
+            if "gemini" in model_name:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=message_content,
+                    config=types.GenerateContentConfig(
+                        max_output_tokens=3000,
+                        temperature=0.7,
+                        seed=42,
+                        system_instruction=system_prompt,
+                        safety_settings= [
+                            types.SafetySetting(
+                                category='HARM_CATEGORY_HATE_SPEECH',
+                                threshold='BLOCK_NONE'
+                            ),
+                            types.SafetySetting(
+                                category='HARM_CATEGORY_HARASSMENT',
+                                threshold='BLOCK_NONE'
+                            ),
+                            types.SafetySetting(
+                                category='HARM_CATEGORY_SEXUALLY_EXPLICIT',
+                                threshold='BLOCK_NONE'
+                            ),
+                            types.SafetySetting(
+                                category='HARM_CATEGORY_DANGEROUS_CONTENT',
+                                threshold='BLOCK_NONE'
+                            ),
+                            types.SafetySetting(
+                                category='HARM_CATEGORY_CIVIC_INTEGRITY',
+                                threshold='BLOCK_NONE'
+                            ),
+                        ],
+                        response_mime_type='application/json',
+                        response_schema=get_analysis_schema(supports_pattern=True)
+                    )
+                )
+            else:  # OpenAI models
+                formatted_messages = [{"role": "system", "content": system_prompt}]
+                for item in message_content:
+                    if isinstance(item, str):
+                        formatted_messages.append({"role": "user", "content": item})
+                    elif isinstance(item, list) and len(item) > 0:
+                        content_parts = []
+                        for part in item:
+                            if isinstance(part, str):
+                                content_parts.append({"type": "text", "text": part})
+                            elif hasattr(part, 'mode') and part.mode == 'RGB':  # PIL Image
+                                # Convert PIL image to base64
+                                import base64
+                                import io
+                                buffered = io.BytesIO()
+                                part.save(buffered, format="PNG")
+                                img_str = base64.b64encode(buffered.getvalue()).decode()
+                                content_parts.append({
+                                    "type": "image_url",
+                                    "image_url": {"url": f"data:image/png;base64,{img_str}", "detail": "high"}
+                                })
+                        if content_parts:
+                            formatted_messages.append({"role": "user", "content": content_parts})
+                    elif isinstance(item, str) and item.startswith("{") and item.endswith("}"):
+                        # This is a JSON response from the model
+                        formatted_messages.append({"role": "assistant", "content": item})
+                
+                response_obj = client.chat.completions.create(
+                    model=model_name,
+                    messages=formatted_messages,
+                    temperature=0.7,
+                    seed=42,
+                    response_format={ "type": "json_schema", "json_schema": {"name": "analysis", "strict": True, "schema": get_analysis_schema(supports_pattern=False)}},
+                    max_tokens=3000
+                )
+                
+                # Create a response object similar to Gemini's for consistent handling
+                class OpenAIResponse:
+                    def __init__(self, text):
+                        self.text = text
+                
+                response = OpenAIResponse(response_obj.choices[0].message.content)
         else:
             response = answer_with_options(message_content, allow_sample=False)
         
@@ -384,12 +489,16 @@ def main():
     parser.add_argument('--dataset', type=str, required=True, help="Dataset to use: egoschema, nextqa, etc.")
     parser.add_argument('--num_workers', type=int, default=None, 
                        help="Number of worker processes. Defaults to CPU count - 1")
+    parser.add_argument('--model', type=str, default="gemini-2.0-flash",
+                       help="Model to use: gemini-2.0-flash or gpt-4o")
     args = parser.parse_args()
 
     # Set dataset-specific environment variables
     os.environ["DATASET"] = args.dataset
+    os.environ["MODEL"] = args.model
+    
     if args.dataset == "egoschema":
-        os.environ["QUESTION_FILE_PATH"] = "data/egoschema/subset_dynamic_sampling.json"
+        os.environ["QUESTION_FILE_PATH"] = f"data/egoschema/subset_dynamic_sampling_{args.model}.json"
         os.environ["VIDEO_DIR_PATH"] = "/simurgh/u/akhatua/VideoMultiAgents/data/egoschema"
         os.environ["VIDEO_DURATIONS"] = "data/egoschema/durations.json"
     elif args.dataset == "nextqa":
@@ -411,6 +520,7 @@ def main():
 
     print(f"Starting processing with {num_workers} workers")
     print(f"Found {len(unprocessed_videos)} unprocessed videos")
+    print(f"Using model: {args.model}")
     
     # Create process pool and process videos in parallel
     with Pool(num_workers) as pool:
