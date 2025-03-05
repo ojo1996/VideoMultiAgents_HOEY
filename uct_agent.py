@@ -107,7 +107,8 @@ def execute_dynamic_sampling_agent(temperature=0):
     # Function to update frame relevance with exponential decay
     def update_frame_relevance(timestamp, relevance_score, sample_weight=1.0):
         frame_idx = np.clip(timestamp_to_seconds(timestamp), 0, total_frames - 1)
-        frame_relevance[frame_idx] += relevance_score * sample_weight
+        # Do not add frame relevance to prevent resampling the same frame
+        # frame_relevance[frame_idx] += relevance_score * sample_weight
         frame_visits[frame_idx] += sample_weight
         
         # Apply exponential decay to neighboring frames
@@ -156,20 +157,19 @@ def execute_dynamic_sampling_agent(temperature=0):
         "type": "object",
         "properties": {
             "relevance_score": {"type": "number"},
-            "decision": {
+            "next_step": {
                 "type": "object",
                 "properties": {
-                    "reasoning": {"type": "string", "description": "reasoning for the decision"},
-                    "type": {"type": "string", "enum": ["answer", "sample_more"]},
-                    "answer": {"type": "string", "description": "answer to the question"}
+                    "reasoning": {"type": "string", "description": "reasoning for whether to sample more frames or give the final answer"},
+                    "decision": {"type": "string", "enum": ["sample_more", "give_answer"]},
                 },
-                "required": ["type", "reasoning", "answer"],
-                "propertyOrdering": ["type", "reasoning", "answer"],
+                "required": ["reasoning", "decision"],
+                "propertyOrdering": ["reasoning", "decision"],
                 "additionalProperties": False
             }
         },
-        "required": ["relevance_score", "decision"],
-        "propertyOrdering": ["relevance_score", "decision"],
+        "required": ["relevance_score", "next_step"],
+        "propertyOrdering": ["relevance_score", "next_step"],
         "additionalProperties": False
     }
     
@@ -239,11 +239,11 @@ def execute_dynamic_sampling_agent(temperature=0):
         
         return formatted_messages
 
-    def call_llm(response_schema_name, response_schema):
+    def call_llm(prompt, response_schema_name, response_schema):
         if "gemini" in model_name:
             response = client.models.generate_content(
                 model=model_name,
-                contents=message_content,
+                contents=prompt,
                 config=types.GenerateContentConfig(
                     max_output_tokens=3000,
                     temperature=temperature,
@@ -255,7 +255,8 @@ def execute_dynamic_sampling_agent(temperature=0):
                 )
             ).text
         else:  # OpenAI models
-            formatted_messages = format_message_for_openai(message_content)
+            formatted_messages = format_message_for_openai(prompt)
+            # print(formatted_messages)
             response = client.chat.completions.create(
                 model=model_name,
                 messages=formatted_messages,
@@ -278,7 +279,15 @@ def execute_dynamic_sampling_agent(temperature=0):
     def answer_with_options(message_content):
         prompt = f'Think step by step and answer the question with one of the options (A, B, C, D, or E).'
         message_content.append(prompt)
-        return call_llm("final_answer", final_answer_schema)
+        full_prompt = []
+        for msg in sorted(message_content, key=lambda x: x[0] if isinstance(x, list) and x[0].startswith("Here's a frame at") else ""):
+            if isinstance(msg, list):
+                full_prompt.extend(msg)
+            elif not (isinstance(msg, str) and msg.startswith("{")):
+                full_prompt.append(msg)
+        full_prompt = [full_prompt]
+        # print(full_prompt)
+        return call_llm(full_prompt, "final_answer", final_answer_schema)
 
     message_content = []
     
@@ -317,7 +326,14 @@ def execute_dynamic_sampling_agent(temperature=0):
             message_content.append(user_prompt)
             
             # Get relevance score and decision for this frame
-            decision_response = call_llm("frame_relevance_and_decision", frame_relevance_and_decision_schema)
+            full_prompt = []
+            for msg in message_content:
+                if isinstance(msg, str) and msg.startswith("{"):
+                    full_prompt.append(f'{{"relevance_score": {json.loads(msg)["relevance_score"]}}}')
+                else:
+                    full_prompt.append(msg)
+            # print(full_prompt)
+            decision_response = call_llm(full_prompt, "frame_relevance_and_decision", frame_relevance_and_decision_schema)
             
             # Update UCT values based on relevance score
             relevance = decision_response["relevance_score"]
@@ -327,10 +343,7 @@ def execute_dynamic_sampling_agent(temperature=0):
             os.remove(frame_path)
         
         # Check the decision from the model
-        if decision_response["decision"]["type"] == "answer":
-            # Extract the final answer
-            answer = decision_response["decision"]["answer"]
-            print(f"Final answer: {answer}")
+        if decision_response["next_step"]["decision"] == "give_answer":
             break
     
     # If we've exhausted all iterations without an answer, force a final answer
