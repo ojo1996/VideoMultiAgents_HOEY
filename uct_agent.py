@@ -93,10 +93,9 @@ def execute_dynamic_sampling_agent(temperature=0):
     
     # UCT parameters
     c = 0.5  # Exploration constant
-    decay_threshold = 0.01
+    decay_threshold = 0.1
     # Controls how quickly relevance decays with distance
-    # Effectively split the video into 10 segments
-    decay_rate = decay_threshold ** (10/video_duration_seconds)
+    decay_rate = decay_threshold ** (1/video_duration_seconds)
 
     print(f"Decay rate: {decay_rate}")
     total_frames = video_duration_seconds
@@ -156,39 +155,29 @@ def execute_dynamic_sampling_agent(temperature=0):
     frame_relevance_and_decision_schema = {
         "type": "object",
         "properties": {
-            "relevance_score": {
-                "type": "object",
-                "properties": {
-                    "explanation": {"type": "string"},
-                    "relevance": {"type": "number"}
-                },
-                "required": ["explanation", "relevance"],
-                "propertyOrdering": ["explanation", "relevance"],
-                "additionalProperties": False
-            },
-            "reasoning": {"type": "string"},
+            "relevance_score": {"type": "number"},
             "decision": {
                 "type": "object",
                 "properties": {
+                    "reasoning": {"type": "string", "description": "reasoning for the decision"},
                     "type": {"type": "string", "enum": ["answer", "sample_more"]},
-                    "answer": {"type": "string", "enum": ["Option A", "Option B", "Option C", "Option D", "Option E"]},
-                    "confidence": {"type": "number"}
+                    "answer": {"type": "string", "description": "answer to the question"}
                 },
-                "required": ["type", "answer", "confidence"],
-                "propertyOrdering": ["type", "answer", "confidence"],
+                "required": ["type", "reasoning", "answer"],
+                "propertyOrdering": ["type", "reasoning", "answer"],
                 "additionalProperties": False
             }
         },
-        "required": ["relevance_score", "reasoning", "decision"],
-        "propertyOrdering": ["relevance_score", "reasoning", "decision"],
+        "required": ["relevance_score", "decision"],
+        "propertyOrdering": ["relevance_score", "decision"],
         "additionalProperties": False
     }
     
     final_answer_schema = {
         "type": "object",
         "properties": {
-            "reasoning": {"type": "string"},
-            "answer": {"type": "string", "enum": ["Option A", "Option B", "Option C", "Option D", "Option E"]}
+            "reasoning": {"type": "string", "description": "reasoning for the final answer"},
+            "answer": {"type": "string", "enum": ["Option A", "Option B", "Option C", "Option D", "Option E"], "description": "answer to the question"}
         },
         "required": ["reasoning", "answer"],
         "propertyOrdering": ["reasoning", "answer"],
@@ -202,10 +191,10 @@ def execute_dynamic_sampling_agent(temperature=0):
     system_prompt = (
         system_prompt_role +
         "Think step by step and analyze the visual content carefully. "
-        f"You will be shown frames from a video that lasts from 00:00 to {duration_str}. "
-        "For each set of frames, you'll be asked to rate their relevance to answering the question on a scale from 0 to 1. "
+        f"Each turn of the conversation, you will be shown a frame from a video that lasts from 00:00 to {duration_str}. "
+        "For each frame, you'll be asked to rate its relevance to answering the question on a scale from 0 to 1. "
         "A score of 1 means the frame is highly relevant to answering the question, while 0 means it's irrelevant. "
-        "After seeing several frames, you'll decide whether to sample more frames or provide your final answer. "
+        "After seeing a frame, think step by step on whether to sample more frames or provide your final answer. "
         "If you have enough information to answer, provide your final answer with justification."
     )
     
@@ -287,20 +276,9 @@ def execute_dynamic_sampling_agent(temperature=0):
         return json.loads(response)
 
     def answer_with_options(message_content):
-        prompt = f'{question_sentence}\n\nThink step by step and answer the question with one of the options (A, B, C, D, or E).'
+        prompt = f'Think step by step and answer the question with one of the options (A, B, C, D, or E).'
         message_content.append(prompt)
         return call_llm("final_answer", final_answer_schema)
-
-    def get_frame_relevance_and_decision(message_content):
-        """Ask the model to rate the relevance of each frame and decide whether to sample more frames or answer"""
-        prompt = f"Please rate the relevance of each frame to answering the question on a scale from 0 to 1.\n"
-        prompt += f"A score of 1 means the frame is highly relevant, while 0 means it's irrelevant.\n"
-        prompt += f"For each frame, provide a brief explanation of your rating.\n\n"
-        prompt += "After rating the frames and considering all the information obtained so far, decide whether you can answer the question or need to sample more frames.\n"
-        prompt += "If you choose to answer, provide your answer and confidence level (0-1)."
-
-        message_content.append(prompt)
-        return call_llm("frame_relevance_and_decision", frame_relevance_and_decision_schema)
 
     message_content = []
     
@@ -333,16 +311,16 @@ def execute_dynamic_sampling_agent(temperature=0):
             
             # Create prompt for this frame
             user_prompt = [
-                f"Here is a frame sampled from the video at {timestamp}",
+                (f"{question_sentence} " if iteration == 0 else "") + f"Here's a frame at {timestamp}",
                 frame_image
             ]
             message_content.append(user_prompt)
             
             # Get relevance score and decision for this frame
-            decision_response = get_frame_relevance_and_decision(message_content)
+            decision_response = call_llm("frame_relevance_and_decision", frame_relevance_and_decision_schema)
             
             # Update UCT values based on relevance score
-            relevance = decision_response["relevance_score"]["relevance"]
+            relevance = decision_response["relevance_score"]
             update_frame_relevance(timestamp, relevance, sample_weight=1.0)
             
             # Clean up temporary file
@@ -352,12 +330,7 @@ def execute_dynamic_sampling_agent(temperature=0):
         if decision_response["decision"]["type"] == "answer":
             # Extract the final answer
             answer = decision_response["decision"]["answer"]
-            confidence = decision_response["decision"]["confidence"]
-            print(f"Final answer: {answer} (confidence: {confidence})")
-            # # If confidence is low but we still have iterations left, continue sampling
-            # if confidence < 0.7 and iteration < max_iterations - 1:
-            #     print(f"Confidence is low ({confidence}), continuing to sample more frames")
-            #     continue
+            print(f"Final answer: {answer}")
             break
     
     # If we've exhausted all iterations without an answer, force a final answer
