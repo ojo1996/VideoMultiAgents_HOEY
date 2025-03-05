@@ -85,7 +85,10 @@ def execute_vca_agent(temperature=0.5):
     
     # Schema for exploration agent output
     def exploration_agent_schema():
-        allowed_segment_ids = list(candidate_segments.keys())
+        # Filter candidate segments to keep only those with sufficient length for expansion
+        filtered_segments = {seg_id: seg_data for seg_id, seg_data in candidate_segments.items() 
+                            if seg_data['end'] - seg_data['start'] >= frames_per_iteration}
+        allowed_segment_ids = list(filtered_segments.keys())
         return {
             "type": "object",
             "properties": {
@@ -190,9 +193,10 @@ def execute_vca_agent(temperature=0.5):
         # If memory exceeds limit, remove frames with lowest scores
         memory_limit = 8 if os.getenv("DATASET") == "egoschema" else 16
         if len(memory) > memory_limit:
-            # Sort segments by score and keep only the top frames
+            # TODO: Sort segments by score and keep only the top frames
             memory = memory[-memory_limit:]
         
+        print('Memory size: ', len(memory))
         return memory
     
     # Function to call the reward model
