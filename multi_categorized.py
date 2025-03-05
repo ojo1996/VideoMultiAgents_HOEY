@@ -3,7 +3,7 @@ import json
 from collections import defaultdict
 
 # Load the category information
-with open("data/egoschema/categories.json", "r") as f:
+with open("data/results/egoschema_fullset_categories.json", "r") as f:
     categories_data = json.load(f)
 
 # Create a mapping from question UUID to its categories
@@ -13,11 +13,14 @@ for item in categories_data:
     question_to_categories[uuid] = category_ids
 
 # Load the text and video data
-with open("data/egoschema/subset_single_text.json", "r") as f:
+with open("data/results/egoschema_fullset_single_text.json", "r") as f:
     text_data = json.load(f)
 
-with open("data/egoschema/subset_single_video.json", "r") as f:
+with open("data/results/egoschema_fullset_single_video.json", "r") as f:
     video_data = json.load(f)
+
+with open("data/results/egoschema_fullset_single_graph.json", "r") as f:
+    graph_data = json.load(f)
 
 # Initialize the result dictionary
 result = defaultdict(dict)
@@ -33,8 +36,9 @@ for video_id, data in text_data.items():
     categories = question_to_categories[uuid]
     
     # Determine which data source to use based on the category
-    # Category 5 (Action Sequence Analysis) and 1 (Purpose/Goal Identification) uses text data, all others use video data
-    if 5 in categories or 1 in categories:
+    if 0 in categories:
+        result[uuid] = graph_data[uuid]
+    elif {1, 2, 3} & set(categories):
         if uuid in text_data:
             result[uuid] = text_data[uuid]
     else:
@@ -42,7 +46,7 @@ for video_id, data in text_data.items():
             result[uuid] = video_data[uuid]
 
 # Save the categorized results
-with open("data/egoschema/subset_multi_categorized.json", "w") as f:
+with open("data/results/egoschema_fullset_multi_categorized.json", "w") as f:
     json.dump(dict(result), f, indent=4)
 
-print(f"Processed {len(result)} questions and saved to data/egoschema/subset_multi_categorized.json")
+print(f"Processed {len(result)} questions and saved to results/egoschema_fullset_multi_categorized.json")
