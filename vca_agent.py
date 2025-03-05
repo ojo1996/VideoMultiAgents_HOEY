@@ -12,7 +12,7 @@ from util import read_json_file, set_environment_variables, save_result
 import openai
 
 
-def execute_vca_agent(temperature=0.5):
+def execute_vca_agent(temperature=0.5, max_iter=16):
     # Load question data and create question sentence
     target_question_data = json.loads(os.getenv("QA_JSON_STR"))
     question_sentence = create_question_sentence(target_question_data)
@@ -84,33 +84,44 @@ def execute_vca_agent(temperature=0.5):
         }
     
     # Schema for exploration agent output
-    def exploration_agent_schema():
+    def exploration_agent_schema(force_answer=False):
         # Filter candidate segments to keep only those with sufficient length for expansion
         filtered_segments = {seg_id: seg_data for seg_id, seg_data in candidate_segments.items() 
                             if seg_data['end'] - seg_data['start'] >= frames_per_iteration}
         allowed_segment_ids = list(filtered_segments.keys())
-        return {
-            "type": "object",
-            "properties": {
-                "reasoning": {"type": "string"},
-                "decision": {
-                    "type": "string",
-                    "enum": ["explore", "answer"]
+        if force_answer:
+            return {
+                "type": "object",
+                "properties": {
+                    "reasoning": {"type": "string"},
+                    "answer": {"type": "string", "enum": ["Option A", "Option B", "Option C", "Option D", "Option E"]},
                 },
-                "segment_id": {
-                    "type": ["string", "null"],
-                    "enum": allowed_segment_ids,
-                    "description": "The segment ID to explore next, or null if answering"
+                "required": ["reasoning", "answer"],
+                "additionalProperties": False
+            }
+        else:
+            return {
+                "type": "object",
+                "properties": {
+                    "reasoning": {"type": "string"},
+                    "decision": {
+                        "type": "string",
+                        "enum": ["explore", "answer"]
+                    },
+                    "segment_id": {
+                        "type": ["string", "null"],
+                        "enum": allowed_segment_ids,
+                        "description": "The segment ID to explore next, or null if answering"
+                    },
+                    "answer": {
+                        "type": ["string", "null"],
+                        "description": "The final answer if decision is 'answer', or null if exploring",
+                        "enum": ["Option A", "Option B", "Option C", "Option D", "Option E"]
+                    },
                 },
-                "answer": {
-                    "type": ["string", "null"],
-                    "description": "The final answer if decision is 'answer', or null if exploring",
-                    "enum": ["Option A", "Option B", "Option C", "Option D", "Option E"]
-                },
-            },
-            "required": ["reasoning", "decision", "segment_id", "answer"],
-            "additionalProperties": False
-        }
+                "required": ["reasoning", "decision", "segment_id", "answer"],
+                "additionalProperties": False
+            }
     
     # Function to uniformly sample frames from a segment
     def uniform_sample(segment_id, num_frames):
@@ -326,7 +337,7 @@ In your explanation, describe your reasoning process and any inferred details ab
         return result_dict
     
     # Function to call the exploration agent
-    def call_exploration_agent(segments_with_scores, memory_buffer):
+    def call_exploration_agent(segments_with_scores, memory_buffer, force_answer=False):
         client = openai.Client(api_key=os.getenv("OPENAI_API_KEY"))
         
         # Prepare the prompt
@@ -335,20 +346,24 @@ In your explanation, describe your reasoning process and any inferred details ab
 You are a helpful assistant with access to a video that is {total_frames} frames long ({video_duration_seconds} seconds).
 
 {question_sentence}
-
+"""
+        if force_answer:
+            prompt += "You are tasked with providing the final answer to the question."
+        else:
+            prompt += f"""
 You are tasked with exploring the video to gather the information needed to answer a specific question with complete confidence. At each step, you may select one segment of the video to examine. Once you choose a segment, you will receive a set of representative frames sampled from that segment. Use each exploration step strategically to uncover key details, progressively refining your understanding of the video's content. Continue exploring as needed until you have acquired all the information necessary to answer the question.
 
 In this round, you are provided with {len(segments_with_scores)} distinct segments, each covering a specific interval. The interval for each segment is detailed below.
 
 /* Segment Information */
 """
-        for segment_id, segment_data in segments_with_scores.items():
-            score = segment_data["score"]
-            start_time = seconds_to_timestamp(segment_data["start"])
-            end_time = seconds_to_timestamp(segment_data["end"])
-            prompt += f"Segment {segment_id}: [{start_time}, {end_time}] || Relevance Score: {score}%\n"
-        
-        prompt += f"""
+            for segment_id, segment_data in segments_with_scores.items():
+                score = segment_data["score"]
+                start_time = seconds_to_timestamp(segment_data["start"])
+                end_time = seconds_to_timestamp(segment_data["end"])
+                prompt += f"Segment {segment_id}: [{start_time}, {end_time}] || Relevance Score: {score}%\n"
+            
+            prompt += f"""
 /* Exploration Instruction */
 For each segment, an auxiliary video assistant has already evaluated the relevance score between these frames and the question to assist you in your exploration. Focus on the segments most likely to contain key information for confidently answering the question.
 
@@ -387,7 +402,7 @@ If you have enough information to answer this question, please select the best a
             messages=msgs,
             temperature=temperature,
             seed=42,
-            response_format={"type": "json_schema", "json_schema": { "name": "exploration_agent", "schema": exploration_agent_schema(), "strict": True}},
+            response_format={"type": "json_schema", "json_schema": { "name": "exploration_agent", "schema": exploration_agent_schema(force_answer), "strict": True}},
             max_tokens=3000,
         )
         
@@ -410,7 +425,7 @@ If you have enough information to answer this question, please select the best a
     prediction_result = -1
     iteration = 0
 
-    while True:
+    while iteration < max_iter:
         print(f"Iteration {iteration + 1}")
         
         # Step 8: Uniform sampling of frames from current segment
@@ -433,7 +448,8 @@ If you have enough information to answer this question, please select the best a
         memory_buffer = update_memory(memory_buffer, frames, segments_with_scores)
         
         # Step 18: Call exploration agent to decide next action
-        agent_decision = call_exploration_agent(segments_with_scores, memory_buffer)
+        force_answer = iteration == max_iter - 1
+        agent_decision = call_exploration_agent(segments_with_scores, memory_buffer, force_answer=force_answer)
         
         # Clean up temporary files
         for path in frame_paths:
@@ -441,7 +457,7 @@ If you have enough information to answer this question, please select the best a
                 os.remove(path)
         
         # Step 19-24: Process agent decision
-        if agent_decision["decision"] == "explore":
+        if not force_answer and agent_decision["decision"] == "explore":
             # Continue exploration with selected segment
             current_segment_id = agent_decision["segment_id"]
             print(f"Selected segment {current_segment_id} for further exploration")
@@ -456,18 +472,6 @@ If you have enough information to answer this question, please select the best a
             break
         
         iteration += 1
-    
-    # If we've exhausted all iterations without an answer, force a final answer
-    if prediction_result == -1:
-        print("Reached maximum iterations without answer, forcing final answer")
-        
-        # Call exploration agent one last time to get final answer
-        final_decision = call_exploration_agent([], memory_buffer)
-        answer = final_decision["answer"]
-        
-        # Convert answer to prediction result (0-4)
-        option_mapping = {"Option A": 0, "Option B": 1, "Option C": 2, "Option D": 3, "Option E": 4}
-        prediction_result = option_mapping.get(answer, -1)
     
     # Print the final result
     if os.getenv("DATASET") in ["egoschema", "nextqa"]:
@@ -502,7 +506,7 @@ def process_single_video(dataset, video_data):
         set_environment_variables(dataset, video_id, json_data)
 
         # Execute VCA agent
-        pred, message_content = execute_vca_agent()
+        pred, message_content = execute_vca_agent(max_iter=int(os.getenv("MAX_ITER")))
         
         # Save results
         print(f"Results for video {video_id}: {pred}")
@@ -541,14 +545,17 @@ def main():
                        help="Number of worker processes. Defaults to CPU count - 1")
     parser.add_argument('--partition', type=str, default="subset",
                        help="Partition to use: fullset, subset")
+    parser.add_argument('--max_iter', type=int, default=16,
+                       help="Maximum number of iterations for VCA agent")
     args = parser.parse_args()
 
     # Set dataset-specific environment variables
     os.environ["DATASET"] = args.dataset
     os.environ["MODEL"] = "gpt-4o-2024-08-06"  # Lock model to gpt-4o-2024-08-06
+    os.environ["MAX_ITER"] = str(args.max_iter)
 
     if args.dataset == "egoschema":
-        os.environ["QUESTION_FILE_PATH"] = f"data/egoschema/{args.partition}_vca_gpt-4o-2024-08-06.json"
+        os.environ["QUESTION_FILE_PATH"] = f"data/egoschema/{args.partition}_vca_gpt-4o-2024-08-06_max_iter_{args.max_iter}.json"
         os.environ["VIDEO_DIR_PATH"] = "/simurgh/u/akhatua/VideoMultiAgents/data/egoschema"
         os.environ["VIDEO_DURATIONS"] = "data/egoschema/durations.json"
     elif args.dataset == "nextqa":
