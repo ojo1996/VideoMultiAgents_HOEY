@@ -10,6 +10,7 @@ from single_agent import execute_single_agent
 import multi_agent_star
 import multi_agent_report
 import multi_agent_report_star
+import multi_agent_debate
 import traceback
 
 # Import required tools for video analysis
@@ -68,6 +69,8 @@ def process_single_video(modality, agents, dataset, use_summary_info, video_data
             result, agent_response, agent_prompts = multi_agent_report.execute_multi_agent(use_summary_info)
         elif agents.startswith("multi_star"):
             result, agent_response, agent_prompts = multi_agent_star.execute_multi_agent(use_summary_info)
+        elif agents.startswith("multi_debate"):
+            result, agent_response, agent_prompts = multi_agent_debate.execute_multi_agent_multi_round(use_summary_info)
 
         # Save results
         print(f"Results for video {video_id}: {result}")

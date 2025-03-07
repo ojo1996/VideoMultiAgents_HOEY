@@ -12,10 +12,7 @@ from langchain.output_parsers.openai_functions import JsonOutputFunctionsParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-
-from IPython.display import Image, display
-from langchain_core.runnables.graph import CurveStyle, MermaidDrawMethod, NodeStyles
-from langgraph.types import Command
+from langchain_core.runnables.graph import MermaidDrawMethod
 
 
 from tools.dummy_tool import dummy_tool
@@ -31,7 +28,7 @@ from tools.analyze_video_gemini import analyze_video_gemini
 
 from tools.analyze_video_gpt4o_with_videotree_frame_sampling import analyze_video_gpt4o_with_videotree_frame_sampling
 from tools.retrieve_video_scene_graph import retrieve_video_scene_graph
-from util import post_process, post_intermediate_process, ask_gpt4_omni, create_organizer_prompt, create_question_sentence, create_stage2_agent_prompt
+from util import post_process, prepare_intermediate_steps, post_intermediate_process, ask_gpt4_omni, create_organizer_prompt, create_question_sentence, create_stage2_agent_prompt
 
 
 
@@ -77,7 +74,7 @@ def create_agent(llm, tools: list, system_prompt: str, prompt: str):
 
 
 
-def agent1_node(state):
+def agent1_node(state, use_summary_info):
     # print("agent1_node")
     # print("State at agent1_node start:", state)
     target_question_data = json.loads(os.getenv("QA_JSON_STR"))
@@ -88,7 +85,8 @@ def agent1_node(state):
             "You are currently in a DEBATE "
             "with Agent2 (captions analyzer) and Agent3 (scene graph analyzer). This is your round 1 debate. "
             "Your goal is to use your specialty to answer the question. \n"
-            "You also need to decide which agent should speak next."
+            "You also need to decide which agent should speak next.",
+            use_summary_info=use_summary_info
         )
         state["agent_prompts"]["agent1"] = prompt
     else:
@@ -128,11 +126,16 @@ def agent1_node(state):
     result = agent.invoke(state)
     # print("State after agent1 invocation:", result)
     name = "agent1" if state["curr_round"] == 0 else "agent1_round2"
-    result["messages"].append(HumanMessage(content=result["output"], name=name))
+
+    # Extract tool results
+    intermediate_steps = prepare_intermediate_steps(result.get("intermediate_steps", []))
+    output = f"Output:\n{result['output']}\n\nIntermediate Steps:\n{intermediate_steps}"
+
+    result["messages"].append(HumanMessage(content=output, name=name))
     # print("State after agent1 invocation:", result)
     return state
 
-def agent2_node(state):
+def agent2_node(state, use_summary_info):
     print("agent2_node")
     # print("State at agent2_node start:", state)
     target_question_data = json.loads(os.getenv("QA_JSON_STR"))
@@ -143,7 +146,8 @@ def agent2_node(state):
             "You are currently in a DEBATE with Agent1 (advanced video analysis) and Agent3 (scene graph analyzer).  "
             "Your goal is to use your specialty (caption interpertation) to answer the question. \n"
             "Could you also analyze and critically refute previous agnets' opinions based on your own insights from the tool?"
-            "You also need to decide which agent should speak next."
+            "You also need to decide which agent should speak next.",
+            use_summary_info=use_summary_info
         )
         state["agent_prompts"]["agent2"] = prompt
     else:
@@ -189,7 +193,7 @@ def agent2_node(state):
     return state
 
 
-def agent3_node(state):
+def agent3_node(state, use_summary_info):
     print("agent3_node")
     # print("State at agent3_node start:", state)
     target_question_data = json.loads(os.getenv("QA_JSON_STR"))
@@ -197,7 +201,8 @@ def agent3_node(state):
         prompt = create_stage2_agent_prompt(
             target_question_data,
             "You are Agent3, an expert in scene-graph analysis for video. Please summarize and critique the arguments of Agent1 and Agent2. Do you agree with their conclusions? "
-            "Be sure to use graph tool to analyze the question. Provide a counterargument to other agent's logic.  "
+            "Be sure to use graph tool to analyze the question. Provide a counterargument to other agent's logic.  ",
+            use_summary_info=use_summary_info
         )
         state["agent_prompts"]["agent3"] = prompt
     else:
@@ -352,7 +357,7 @@ def mas_result_to_dict(result_data):
    return log_dict
 
 
-def execute_multi_agent_multi_round():
+def execute_multi_agent_multi_round(use_summary_info):
     print("execute_multi_agent_multi_round")
     members = ["agent1", "agent2", "agent3", "organizer"]
     members_round2 = [ "agent1_round2", "agent2_round2", "agent3_round2", "organizer_round2"]
@@ -399,9 +404,9 @@ def execute_multi_agent_multi_round():
     target_question_data = json.loads(os.getenv("QA_JSON_STR"))
 
 
-    agent1_node_fn = functools.partial(agent1_node)
-    agent2_node_fn = functools.partial(agent2_node)
-    agent3_node_fn = functools.partial(agent3_node)
+    agent1_node_fn = functools.partial(agent1_node, use_summary_info=use_summary_info)
+    agent2_node_fn = functools.partial(agent2_node, use_summary_info=use_summary_info)
+    agent3_node_fn = functools.partial(agent3_node, use_summary_info=use_summary_info)
 
 
     # --- 3) Build the StateGraph with a debate style (not a star) ---
@@ -410,9 +415,9 @@ def execute_multi_agent_multi_round():
     workflow.add_node("agent2", agent2_node_fn)
     workflow.add_node("agent3", agent3_node_fn)
     workflow.add_node("organizer", organizer_step)
-    workflow.add_node("agent1_round2", agent1_node)
-    workflow.add_node("agent2_round2", agent2_node)
-    workflow.add_node("agent3_round2", agent3_node)
+    workflow.add_node("agent1_round2", agent1_node_fn)
+    workflow.add_node("agent2_round2", agent2_node_fn)
+    workflow.add_node("agent3_round2", agent3_node_fn)
     workflow.add_node("organizer_round2", organizer_final_step)
     workflow.add_node("supervisor", supervisor_chain)
 
@@ -487,7 +492,7 @@ def execute_multi_agent_multi_round():
     # print("****************************************")
 
 
-    return prediction_result, agents_result_dict, result_data["agent_prompts"], intermediate_result
+    return prediction_result, agents_result_dict, result_data["agent_prompts"]
 
 
 
