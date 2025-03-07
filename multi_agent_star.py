@@ -69,15 +69,15 @@ def agent_node(state, agent, name):
     # Invoke the agent with the temporary state
     result = agent.invoke(agent_state)
 
-    # # Extract tool results
-    # intermediate_steps = prepare_intermediate_steps(result.get("intermediate_steps", []))
+    if name == 'agent1':
+        # # Extract tool results
+        intermediate_steps = prepare_intermediate_steps(result.get("intermediate_steps", []))
+        # Combine output and intermediate steps
+        output = f"Output:\n{result['output']}\n\nIntermediate Steps:\n{intermediate_steps}"
+    else:
+        output = result['output']
 
-    # # Combine output and intermediate steps
-    # combined_output = f"Output:\n{result['output']}\n\nIntermediate Steps:\n{intermediate_steps}"
-
-    # return {"messages": [HumanMessage(content=combined_output, name=name)]}
-
-    return {"messages": [HumanMessage(content=result["output"], name=name)]}
+    return {"messages": [HumanMessage(content=output, name=name)]}
 
 
 class AgentState(TypedDict):

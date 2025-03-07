@@ -1,12 +1,8 @@
 import os
-import json
-import copy
 import time
-import random
 import argparse
-from multiprocessing import Pool, cpu_count
+from multiprocessing import Pool
 from functools import partial
-from util import select_data_and_mark_as_processing
 from util import save_result
 from util import set_environment_variables
 from util import read_json_file
@@ -14,7 +10,6 @@ from single_agent import execute_single_agent
 import multi_agent_star
 import multi_agent_report
 import multi_agent_report_star
-# import multi_agent_debate
 import traceback
 
 # Import required tools for video analysis
@@ -73,8 +68,6 @@ def process_single_video(modality, agents, dataset, use_summary_info, video_data
             result, agent_response, agent_prompts = multi_agent_report.execute_multi_agent(use_summary_info)
         elif agents.startswith("multi_star"):
             result, agent_response, agent_prompts = multi_agent_star.execute_multi_agent(use_summary_info)
-        # elif agents.startswith("multi-debate"):
-        #     result, agent_response, agent_prompts = multi_agent_debate.execute_multi_agent()
 
         # Save results
         print(f"Results for video {video_id}: {result}")
@@ -88,7 +81,7 @@ def process_single_video(modality, agents, dataset, use_summary_info, video_data
         time.sleep(1)
         return False
 
-def get_unprocessed_videos(question_file_path, max_items=1000):
+def get_unprocessed_videos(question_file_path, max_items):
     """
     Get a list of all unprocessed videos from the question file.
     
@@ -114,12 +107,14 @@ def main():
     parser.add_argument('--use_summary_info', type=bool, default=False, help="Use summary info.")
     parser.add_argument('--num_workers', type=int, default=None, 
                        help="Number of worker processes. Defaults to CPU count - 1")
+    parser.add_argument('--max_items', type=int, default=999999999, 
+                       help="Number of videos to process. Defaults to all.")
     args = parser.parse_args()
 
     # Set dataset-specific environment variables
     os.environ["DATASET"] = args.dataset
     if args.dataset == "egoschema":
-        os.environ["QUESTION_FILE_PATH"] = f"data/egoschema/subset_{args.agents}_{args.modality}.json"
+        os.environ["QUESTION_FILE_PATH"] = f"data/egoschema/fullset_{args.agents}_{args.modality}.json"
         os.environ["CAPTIONS_FILE"] = "data/egoschema/egoschema_captions_gpt4o_caption_guided.json"
         os.environ["GRAPH_DATA_PATH"] = "data/egoschema/egoschema_graph_captions.json"
         os.environ["SUMMARY_CACHE_JSON_PATH"] = "data/egoschema/egoschema_summary_cache.json"
@@ -146,7 +141,7 @@ def main():
         raise ValueError(f"Unknown dataset: {args.dataset}")
 
     # Get list of unprocessed videos
-    unprocessed_videos = get_unprocessed_videos(os.getenv("QUESTION_FILE_PATH"))
+    unprocessed_videos = get_unprocessed_videos(os.getenv("QUESTION_FILE_PATH"), max_items=args.max_items)
     
     # Determine number of worker processes
     num_workers = args.num_workers

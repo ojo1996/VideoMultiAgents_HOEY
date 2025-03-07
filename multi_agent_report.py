@@ -86,13 +86,21 @@ def load_json_file(file_path):
 def execute_multi_agent(use_summary_info):
     # Load target question
     target_question_data = json.loads(os.getenv("QA_JSON_STR"))
-    video_id = os.environ["VIDEO_INDEX"]
+    if os.getenv("DATASET") == "nextqa":
+        video_id = target_question_data["q_uid"]
+    elif os.getenv("DATASET") == "egoschema":
+        video_id = os.getenv("VIDEO_INDEX")
 
     # Load precomputed single agent results
-    base_path = "data/egoschema/"
-    video_file = os.path.join(base_path, "subset_single_video.json")
-    text_file = os.path.join(base_path, "subset_single_text.json")
-    graph_file = os.path.join(base_path, "subset_single_graph.json")
+    base_path = "data/results/"
+    if os.getenv("DATASET") == "nextqa":
+        video_file = os.path.join(base_path, "nextqa_val_single_video.json")
+        text_file = os.path.join(base_path, "nextqa_val_single_text.json")
+        graph_file = os.path.join(base_path, "nextqa_val_single_graph.json")
+    elif os.getenv("DATASET") == "egoschema":
+        video_file = os.path.join(base_path, "egoschema_fullset_single_video.json")
+        text_file = os.path.join(base_path, "egoschema_fullset_single_text.json")
+        graph_file = os.path.join(base_path, "egoschema_fullset_single_graph.json")
     
     video_data = load_json_file(video_file)
     text_data = load_json_file(text_file)
@@ -155,39 +163,34 @@ Based on the above discussion, which option is the correct answer?
 Base your decision on a comprehensive analysis of each agent's opinions and the information provided.
 Reason step by step to reach a decision whether the answer is one of [Option A, Option B, Option C, Option D, Option E].
 """
+    organizer_schema = {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "organizer",
+            "schema": {"type": "object",
+                       "properties": {
+                           "reasoning": {"type": "string"},
+                           "answer": {"type": "string", "enum": ["Option A", "Option B", "Option C", "Option D", "Option E"]}
+                        },
+                        "required": ["reasoning", "answer"],
+                        "additionalProperties": False
+                       },
+            "strict": True
+        }
+    }
     
     try:
         print("******************** Organizer Prompt ********************")
         print(gpt4o_prompt)
         print("****************************************")
-        gpt4o_result = ask_gpt4_omni(openai_api_key=openai_api_key, prompt_text=gpt4o_prompt, temperature=0.0)
+        gpt4o_result = ask_gpt4_omni(openai_api_key=openai_api_key, prompt_text=gpt4o_prompt, temperature=0.0, json_schema=organizer_schema)
         print("******************** Organizer Result ********************")
         print(gpt4o_result)
         print("****************************************")
-        prediction_result = post_process(gpt4o_result)
+        agents_result_dict["organizer"] = gpt4o_result
+        prediction_result = post_process(json.loads(gpt4o_result)["answer"])
     except Exception as e:
         print(f"Error using GPT-4o: {e}")
-    
-    # If GPT-4o failed to produce a valid result, use majority voting as fallback
-    if prediction_result == -1:
-        print("GPT-4o failed to produce a valid result. Using majority voting as fallback.")
-        # Count votes for each option
-        votes = {}
-        if video_pred != -1:
-            votes[video_pred] = votes.get(video_pred, 0) + 1
-        if text_pred != -1:
-            votes[text_pred] = votes.get(text_pred, 0) + 1
-        if graph_pred != -1:
-            votes[graph_pred] = votes.get(graph_pred, 0) + 1
-        
-        # Find the option with the most votes
-        if votes:
-            max_votes = max(votes.values())
-            majority_options = [option for option, vote_count in votes.items() if vote_count == max_votes]
-            
-            # If there's a clear majority or a tie, take the first option
-            prediction_result = majority_options[0]
-            print(f"Majority vote result: Option {['A', 'B', 'C', 'D', 'E'][prediction_result]} with {max_votes} votes")
     
     print("****************************************")
     if os.getenv("DATASET") in ["egoschema", "nextqa"]:

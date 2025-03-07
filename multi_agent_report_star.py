@@ -70,15 +70,15 @@ def agent_node(state, agent, name):
     # Invoke the agent with the temporary state
     result = agent.invoke(agent_state)
 
-    # # Extract tool results
-    # intermediate_steps = prepare_intermediate_steps(result.get("intermediate_steps", []))
+    if name == 'agent1':
+        # # Extract tool results
+        intermediate_steps = prepare_intermediate_steps(result.get("intermediate_steps", []))
+        # Combine output and intermediate steps
+        output = f"Output:\n{result['output']}\n\nIntermediate Steps:\n{intermediate_steps}"
+    else:
+        output = result['output']
 
-    # # Combine output and intermediate steps
-    # combined_output = f"Output:\n{result['output']}\n\nIntermediate Steps:\n{intermediate_steps}"
-
-    # return {"messages": [HumanMessage(content=combined_output, name=name)]}
-
-    return {"messages": [HumanMessage(content=result["output"], name=name)]}
+    return {"messages": [HumanMessage(content=output, name=name)]}
 
 
 class AgentState(TypedDict):
@@ -118,13 +118,21 @@ def load_json_file(file_path):
 def execute_multi_agent(use_summary_info):
     # Load target question
     target_question_data = json.loads(os.getenv("QA_JSON_STR"))
-    video_id = os.environ["VIDEO_INDEX"]
+    if os.getenv("DATASET") == "nextqa":
+        video_id = target_question_data["q_uid"]
+    elif os.getenv("DATASET") == "egoschema":
+        video_id = os.getenv("VIDEO_INDEX")
 
     # Load precomputed single agent results
-    base_path = "data/egoschema/"
-    video_file = os.path.join(base_path, "subset_single_video.json")
-    text_file = os.path.join(base_path, "subset_single_text.json")
-    graph_file = os.path.join(base_path, "subset_single_graph.json")
+    base_path = "data/results/"
+    if os.getenv("DATASET") == "nextqa":
+        video_file = os.path.join(base_path, "nextqa_val_single_video.json")
+        text_file = os.path.join(base_path, "nextqa_val_single_text.json")
+        graph_file = os.path.join(base_path, "nextqa_val_single_graph.json")
+    elif os.getenv("DATASET") == "egoschema":
+        video_file = os.path.join(base_path, "egoschema_fullset_single_video.json")
+        text_file = os.path.join(base_path, "egoschema_fullset_single_text.json")
+        graph_file = os.path.join(base_path, "egoschema_fullset_single_graph.json")
     
     video_data = load_json_file(video_file)
     text_data = load_json_file(text_file)
