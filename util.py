@@ -32,7 +32,7 @@ def local_image_to_data_url(image_path):
 
 
 @retry(tries=3, delay=3)
-def ask_gpt4_omni(openai_api_key="", prompt_text="", temperature=0.0, image_dir="", vid="", frame_num=18, detail="low", use_selected_images=None):
+def ask_gpt4_omni(openai_api_key="", prompt_text="", temperature=0.0, image_dir="", vid="", frame_num=18, detail="low", use_selected_images=None, json_schema=None):
     model_name = "gpt-4o"
 
     client = OpenAI(api_key=openai_api_key)
@@ -69,7 +69,8 @@ def ask_gpt4_omni(openai_api_key="", prompt_text="", temperature=0.0, image_dir=
                 { "role": "user", "content": frames }
             ],
             max_tokens=3000,
-            temperature=temperature
+            temperature=temperature,
+            response_format=json_schema
         )
     else:
         response = client.chat.completions.create(
@@ -79,7 +80,8 @@ def ask_gpt4_omni(openai_api_key="", prompt_text="", temperature=0.0, image_dir=
                 { "role": "user", "content": prompt_text }
             ],
             max_tokens=3000,
-            temperature=temperature
+            temperature=temperature,
+            response_format=json_schema
         )
 
     print(f"ask_gpt4_omni: prompt_tokens={response.usage.prompt_tokens}, completion_tokens={response.usage.completion_tokens}, total_tokens={response.usage.total_tokens}")
@@ -484,6 +486,20 @@ def post_process(message:str):
         prediction_num = post_process_5choice(message)
         if prediction_num == -1:
             prompt = message + "\n\nPlease retrieve the final answer from the sentence above. Your response should be one of the following options: Option A, Option B, Option C, Option D, Option E."
+            response_data = ask_gpt4_omni(openai_api_key=os.getenv("OPENAI_API_KEY"), prompt_text=prompt)
+            prediction_num = post_process(response_data)
+        return prediction_num
+    elif os.getenv("DATASET") == "momaqa":
+        prompt = message + "\n\nExtract and output only the content that immediately follows \"- Pred:\" on its line. Do not include any additional text or formatting."
+        response_data = ask_gpt4_omni(openai_api_key=os.getenv("OPENAI_API_KEY"), prompt_text=prompt)
+        return response_data
+
+
+def post_intermediate_process(message:str):
+    if os.getenv("DATASET") == "egoschema" or os.getenv("DATASET") == "nextqa":
+        prediction_num = post_process_5choice(message)
+        if prediction_num == -1:
+            prompt = message + "\n\nPlease retrieve the answer from the sentence above. Your response should be one of the following options: Option A, Option B, Option C, Option D, Option E."
             response_data = ask_gpt4_omni(openai_api_key=os.getenv("OPENAI_API_KEY"), prompt_text=prompt)
             prediction_num = post_process(response_data)
         return prediction_num
