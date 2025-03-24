@@ -1,10 +1,23 @@
 /dataset/**
 /data/**
 /images/**
+/images_egoschema/**
+/images_nextqa/**
+/images_momaqa/**
 
 /vlap/lightning_logs/**
 
 
+**.lock
 **.json
 **.ckpt
 **.pth
+**.pyc
+
+
+**.mp4
+**.png
+**.jpg
+
+**.lock
+**.zip

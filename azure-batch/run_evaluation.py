@@ -121,11 +121,13 @@ if __name__ == '__main__':
 
     dict_data = read_json_file(ANNOTATION_FILE)
 
-    for i, (video_id, json_data) in enumerate(dict_data.items()):
+    for i, (q_id, json_data) in enumerate(dict_data.items()):
 
         # delete google_drive_id in json_data
         if "google_drive_id" in json_data:
             del json_data["google_drive_id"]
+        q_uid = json_data["q_uid"]
+        vid_id = json_data["vid_id"]
         json_data_str = json.dumps(json_data)
         # continue
 
@@ -147,8 +149,8 @@ if __name__ == '__main__':
             batchmodels.EnvironmentSetting(name="DATASET",                  value=DATASET),
             batchmodels.EnvironmentSetting(name="BLOB_CONNECTION_STRING",   value=BLOB_CONNECTION_STRING),
             batchmodels.EnvironmentSetting(name="COSMOS_CONNECTION_STRING", value=COSMOS_CONNECTION_STRING),
-            batchmodels.EnvironmentSetting(name="VIDEO_FILE_NAME",          value=video_id),
-            batchmodels.EnvironmentSetting(name="CONTAINER_NAME",           value=video_id),
+            batchmodels.EnvironmentSetting(name="QUESTION_ID",              value=q_uid),
+            batchmodels.EnvironmentSetting(name="VIDEO_FILE_NAME",          value=vid_id),
             batchmodels.EnvironmentSetting(name="EXPERIMENT_ID",            value=EXPERIMENT_ID),
             batchmodels.EnvironmentSetting(name="QA_JSON_STR",              value=json_data_str),
             batchmodels.EnvironmentSetting(name="OPENAI_API_KEY",           value=OPENAI_API_KEY),

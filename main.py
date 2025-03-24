@@ -1,86 +1,182 @@
 import os
-import json
-import copy
 import time
-import random
 import argparse
-from util import select_data_and_mark_as_processing
+from multiprocessing import Pool
+from functools import partial
 from util import save_result
 from util import set_environment_variables
-from stage1 import execute_stage1
-from stage2 import execute_stage2
+from util import read_json_file
+from single_agent import execute_single_agent
+import multi_agent_star
+import multi_agent_report
+import multi_agent_report_star
+import multi_agent_debate
+import traceback
 
-parser = argparse.ArgumentParser(description="Dataset to use for the analysis")
-parser.add_argument('--dataset', type=str, help="Example: egoschema, nextqa, etc.")
-args = parser.parse_args()
-dataset = args.dataset
+# Import required tools for video analysis
+from tools.retrieve_video_clip_captions import retrieve_video_clip_captions
+from tools.analyze_video_gpt4o import analyze_video_gpt4o
+from tools.analyze_video_gemini import analyze_video_gemini
+from tools.retrieve_video_scene_graph import retrieve_video_scene_graph
+from tools.analyze_all_gpt4o import analyze_all_gpt4o
 
-os.environ["DATASET"] = dataset
+def get_tools(modality):
+    """
+    Get the appropriate tools based on the modality.
+    
+    Args:
+        modality: String indicating which tools to use ('video', 'text', 'graph', or 'all')
+    
+    Returns:
+        List of tool functions to use for processing
+    """
+    if modality == "video":
+        return [analyze_video_gemini]
+    elif modality == "text":
+        return [retrieve_video_clip_captions]
+    elif modality == "graph":
+        return [retrieve_video_scene_graph]
+    elif modality == "all":
+        return [analyze_all_gpt4o]
+    else:
+        raise ValueError(f"Unknown modality: {modality}")
 
-if dataset == "egoschema":
-    os.environ["QUESTION_FILE_PATH"]      = "/root/VideoMultiAgents/egoschema_fullset_anno.json"
-    os.environ["CAPTIONS_FILE"]           = "/root/VideoMultiAgents/egoschema_lavila_captions.json"
-    os.environ["SUMMARY_CACHE_JSON_PATH"] = "/root/VideoMultiAgents/egoschema_summary_cache.json"
-    os.environ["VIDEOTREE_RESULTS_PATH"]  = "/root/VideoMultiAgents/egoschema_videotree_result.json"
-    os.environ["IMAGES_DIR_PATH"]         = "/root/nas_Ego4D/egoschema/images"
-    os.environ["FRAME_NUM"]               = "90"
-elif dataset == "nextqa":
-    os.environ["QUESTION_FILE_PATH"]      = "/root/VideoMultiAgents/nextqa_test_anno.json"
-    os.environ["CAPTIONS_FILE"]           = "/root/VideoMultiAgents/nextqa_llava1.5_captions.json"
-    os.environ["SUMMARY_CACHE_JSON_PATH"] = "/root/VideoMultiAgents/nextqa_summary_cache.json"
-    os.environ["VIDEOTREE_RESULTS_PATH"]  = "/path/to/nextqa/frames_index"
-    os.environ["IMAGES_DIR_PATH"]         = "/root/nas_nextqa/NExTVideoFrames"
-    os.environ["FRAME_NUM"]               = "90"
-elif dataset == "momaqa":
-    os.environ["QUESTION_FILE_PATH"]      = "/root/VideoMultiAgents/momaqa_test_anno.json"
-    os.environ["CAPTIONS_FILE"]           = "/root/VideoMultiAgents/momaqa_captions.json"
-    os.environ["SUMMARY_CACHE_JSON_PATH"] = "/root/VideoMultiAgents/momaqa_summary_cache.json"
-    os.environ["VIDEOTREE_RESULTS_PATH"]  = "/root/VideoMultiAgents/momaqa_videotree_result.json"
-    os.environ["GRAPH_DATA_PATH"]         = "/root/VideoMultiAgents/momaqa_graph_data.json"
-    os.environ["GRAPH_DATA_INDEX"]        = os.getenv("VIDEO_FILE_NAME")
-    os.environ["IMAGES_DIR_PATH"]         = "/root/nas_momaqa/images"
-    os.environ["FRAME_NUM"]               = "90"
-else:
-    raise ValueError(f"Unknown dataset: {dataset}")
-
-
-# Sleep for a random duration (0–10 seconds) to avoid simultaneous access to the JSON file by multiple containers
-sleep_time = random.uniform(0, 10)
-print ("Sleeping for {} seconds".format(sleep_time))
-time.sleep(sleep_time)
-
-
-# Loop through questions
-while True:
-# for i in range(2):
-
+def process_single_video(modality, agents, dataset, use_summary_info, video_data):
+    """
+    Process a single video with tools initialized inside the worker.
+    
+    Args:
+        modality: String indicating which tools to use
+        dataset: Name of the dataset being processed
+        video_data: Tuple of (video_id, json_data)
+    """
+    video_id, json_data = video_data
     try:
-        video_id, json_data = select_data_and_mark_as_processing(os.getenv("QUESTION_FILE_PATH"))
-        print ("video_id: ", video_id)
-        print ("json_data: ", json_data)
+        print(f"Processing video_id: {video_id}")
+        print(f"JSON data: {json_data}")
 
-        if video_id is None: # All data has been processed
-            break
-
-        # Set environment variables
-        print ("****************************************")
+        # Set environment variables for this process
         set_environment_variables(dataset, video_id, json_data)
 
-        # Execute stage1
-        print ("execute stage1")
-        expert_info = execute_stage1()
+        if agents == "single":
+            # Initialize tools inside the worker process
+            tools = get_tools(modality)
+            # Execute video analysis
+            result, agent_response, agent_prompts = execute_single_agent(tools, use_summary_info)
+        elif agents.startswith("multi_report_star"):
+            result, agent_response, agent_prompts = multi_agent_report_star.execute_multi_agent(use_summary_info)
+        elif agents.startswith("multi_report"):
+            result, agent_response, agent_prompts = multi_agent_report.execute_multi_agent(use_summary_info)
+        elif agents.startswith("multi_star"):
+            result, agent_response, agent_prompts = multi_agent_star.execute_multi_agent(use_summary_info)
+        elif agents.startswith("multi_debate"):
+            result, agent_response, agent_prompts = multi_agent_debate.execute_multi_agent_multi_round(use_summary_info)
 
-
-        # Execute stage2
-        print ("execute stage2")
-        result, agent_response, agent_prompts = execute_stage2(expert_info)
-
-        # Save result
-        print("result: ", result)
-        save_result(os.getenv("QUESTION_FILE_PATH"), video_id, expert_info, agent_prompts, agent_response, result, save_backup=False)
-
+        # Save results
+        print(f"Results for video {video_id}: {result}")
+        save_result(os.getenv("QUESTION_FILE_PATH"), video_id, agent_prompts, 
+                   agent_response, result, save_backup=False)
+        
+        return True
     except Exception as e:
-        print ("Error: ", e)
-        #unmark_as_processing(QUESTION_FILE_PATH, video_id)
+        print(f"Error processing video {video_id}: {e}")
+        print(traceback.format_exc())
         time.sleep(1)
-        continue
+        return False
+
+def get_unprocessed_videos(question_file_path, max_items=1000):
+    """
+    Get a list of all unprocessed videos from the question file.
+    
+    Args:
+        question_file_path: Path to the JSON file containing video questions
+    
+    Returns:
+        List of tuples containing (video_id, json_data) for unprocessed videos
+    """
+    dict_data = read_json_file(question_file_path)
+    unprocessed_videos = []
+    for i, (video_id, json_data) in enumerate(list(dict_data.items())[:max_items]):
+        if "pred" not in json_data.keys() or json_data["pred"] == -2:
+            unprocessed_videos.append((video_id, json_data))
+    return unprocessed_videos
+
+def main():
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Dataset to use for the analysis")
+    parser.add_argument('--dataset', type=str, help="Example: egoschema, nextqa, etc.")
+    parser.add_argument('--modality', type=str, help="Example: video, text, graph, all.")
+    parser.add_argument('--agents', type=str, help="Example: single, multi-star.")
+    parser.add_argument('--use_summary_info', type=bool, default=True, help="Use summary info.")
+    parser.add_argument('--num_workers', type=int, default=1, 
+                       help="Number of worker processes. Defaults to CPU count - 1")
+    parser.add_argument('--max_items', type=int, default=999999999, 
+                       help="Number of videos to process. Defaults to all.")
+    args = parser.parse_args()
+
+    # Set dataset-specific environment variables
+    os.environ["DATASET"] = args.dataset
+    if args.dataset == "egoschema":
+        os.environ["QUESTION_FILE_PATH"] = f"data/egoschema/fullset_{args.agents}_{args.modality}.json"
+        os.environ["CAPTIONS_FILE"] = "data/egoschema/egoschema_captions_gpt4o_caption_guided.json"
+        os.environ["GRAPH_DATA_PATH"] = "data/egoschema/egoschema_graph_captions.json"
+        os.environ["SUMMARY_CACHE_JSON_PATH"] = "data/egoschema/egoschema_summary_cache.json"
+        os.environ["VIDEOTREE_RESULTS_PATH"] = "data/egoschema/egoschema_videotree_result.json"
+        os.environ["VIDEO_DIR_PATH"] = "/simurgh/u/akhatua/VideoMultiAgents/data/egoschema"
+        os.environ["FRAME_NUM"] = "180"
+    elif args.dataset == "nextqa":
+        os.environ["QUESTION_FILE_PATH"] = f"data/nextqa/val_{args.agents}_{args.modality}.json"
+        os.environ["GRAPH_DATA_PATH"] = "data/nextqa/nextqa_graph_captions_gpt4o.json"
+        os.environ["CAPTIONS_FILE"] = "data/nextqa/captions_gpt4o_question_guided.json"
+        os.environ["SUMMARY_CACHE_JSON_PATH"] = "data/nextqa/nextqa_summary_cache_val.json"
+        os.environ["IMAGES_DIR_PATH"] = "data/nextqa/frames_aligned/"
+        os.environ["VIDEO_DIR_PATH"] = "/simurgh/u/akhatua/VideoMultiAgents/data/nextqa/NExTVideo"
+        os.environ["FRAME_NUM"] = "180"
+    elif args.dataset == "momaqa":
+        os.environ["QUESTION_FILE_PATH"] = "/root/VideoMultiAgents/momaqa_test_anno.json"
+        os.environ["CAPTIONS_FILE"] = "/root/VideoMultiAgents/momaqa_captions.json"
+        os.environ["SUMMARY_CACHE_JSON_PATH"] = "/root/VideoMultiAgents/momaqa_summary_cache.json"
+        os.environ["VIDEOTREE_RESULTS_PATH"] = "/root/VideoMultiAgents/momaqa_videotree_result.json"
+        os.environ["GRAPH_DATA_PATH"] = "/root/VideoMultiAgents/momaqa_graph_data.json"
+        os.environ["IMAGES_DIR_PATH"] = "/root/nas_momaqa/images"
+        os.environ["FRAME_NUM"] = "90"
+    elif args.dataset == "intentqa":
+        os.environ["QUESTION_FILE_PATH"] = "intentqa_test_single_graph.json"
+        os.environ["GRAPH_DATA_PATH"] = "intentqa_graph_captions.json"
+        os.environ["CAPTIONS_FILE"] = "intentqa_question_guided_captions.json"
+        os.environ["SUMMARY_CACHE_JSON_PATH"] = "intentqa_summary_cache.json"
+        os.environ["IMAGES_DIR_PATH"] = "images_nextqa"
+        os.environ["FRAME_NUM"] = "180"
+    elif args.dataset == "hourvideo":
+        os.environ["QUESTION_FILE_PATH"] = "/root/VideoMultiAgents/hourvideo_single_video.json"
+        os.environ["CAPTIONS_FILE"] = "/root/VideoMultiAgents/hourvideo_local_captions.json"
+        os.environ["SUMMARY_CACHE_JSON_PATH"] = "/root/VideoMultiAgents/hourvideo_summary_cache.json"
+        os.environ["GRAPH_DATA_PATH"] = "/root/VideoMultiAgents/hourvideo_graph_captions.json"
+    else:
+        raise ValueError(f"Unknown dataset: {args.dataset}")
+
+    # Get list of unprocessed videos
+    unprocessed_videos = get_unprocessed_videos(os.getenv("QUESTION_FILE_PATH"), max_items=args.max_items)
+    
+    # Determine number of worker processes
+    num_workers = args.num_workers
+
+    print(f"Starting processing with {num_workers} workers")
+    
+    # Create process pool and process videos in parallel
+    with Pool(num_workers) as pool:
+        # Create a partial function with fixed arguments
+        process_func = partial(process_single_video, args.modality, args.agents, args.dataset, args.use_summary_info)
+        
+        # Process videos in parallel and collect results
+        results = pool.map(process_func, unprocessed_videos)
+        
+        # Print summary
+        successful = sum(1 for r in results if r)
+        failed = len(results) - successful
+        print(f"\nProcessing complete:")
+        print(f"Successfully processed: {successful} videos")
+        print(f"Failed to process: {failed} videos")
+
+if __name__ == "__main__":
+    main()

@@ -14,12 +14,16 @@ def retrieve_video_clip_captions() -> list[str]:
     Returns:
     list[str]: A list of captions for the video.
     """
+    return retrieve_captions()
 
+
+def retrieve_captions():
     print("Called the Image captioning tool.")
 
-    video_filename   = os.getenv("VIDEO_FILE_NAME") 
-    captions_file = os.getenv("CAPTIONS_FILE")
-    dataset       = os.getenv("DATASET")
+    question_id    = os.getenv("QUESTION_ID")
+    video_filename = os.getenv("VIDEO_FILE_NAME") 
+    captions_file  = os.getenv("CAPTIONS_FILE")
+    dataset        = os.getenv("DATASET")
 
     # Check if the captions file exists
     if not os.path.exists(captions_file):
@@ -31,6 +35,11 @@ def retrieve_video_clip_captions() -> list[str]:
         captions_data = json.load(f)
 
     captions = captions_data.get(video_filename, [])
+    # In case the caption file is not question guided
+    if len(captions) == 0:
+        captions = captions_data.get(question_id, [])
+    print("Captions: ", captions)
+
     result = []
     previous_caption = None
 
@@ -57,6 +66,8 @@ def retrieve_video_clip_captions() -> list[str]:
     # print("Retrieved video clip captions.")
     # print(result)
 
+    print("********************** Retrieved video clip captions.*************************")
+    print(result)
     return result
 
 

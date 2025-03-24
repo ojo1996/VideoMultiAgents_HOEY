@@ -4,22 +4,23 @@ from azure.storage.blob import BlobServiceClient
 from azure.cosmos import CosmosClient, PartitionKey
 
 
-def download_blob_data(starage_account_connection_string:str, container_name:str, local_download_path:str):
+def download_blob_data(starage_account_connection_string:str, video_file_name:str, local_download_path:str):
     """
-    Download all blobs in the specified container to the specified local directory.
+    Download all blobs for the specified video file to the specified local directory.
 
     Parameters:
     starage_account_connection_string (str): The connection string to the Azure Storage account.
-    container_name (str): The name of the container.
+    video_file_name (str): The id of the specified video file.
     local_download_path (str): The path to the local directory where the blobs will be downloaded.
     """
 
     # Initialize BlobServiceClient
+    
     blob_service_client = BlobServiceClient.from_connection_string(starage_account_connection_string)
-    container_client = blob_service_client.get_container_client(container_name)
+    container_client = blob_service_client.get_container_client(video_file_name)
 
     # Create the local download directory if it does not exist
-    local_download_path = os.path.join(local_download_path, container_name)
+    local_download_path = os.path.join(local_download_path, video_file_name)
     if not os.path.exists(local_download_path):
         os.makedirs(local_download_path)
 
