@@ -84,7 +84,7 @@ def process_single_video(modality, agents, dataset, use_summary_info, video_data
         time.sleep(1)
         return False
 
-def get_unprocessed_videos(question_file_path, max_items):
+def get_unprocessed_videos(question_file_path, max_items=1000):
     """
     Get a list of all unprocessed videos from the question file.
     
@@ -107,8 +107,8 @@ def main():
     parser.add_argument('--dataset', type=str, help="Example: egoschema, nextqa, etc.")
     parser.add_argument('--modality', type=str, help="Example: video, text, graph, all.")
     parser.add_argument('--agents', type=str, help="Example: single, multi-star.")
-    parser.add_argument('--use_summary_info', type=bool, default=False, help="Use summary info.")
-    parser.add_argument('--num_workers', type=int, default=None, 
+    parser.add_argument('--use_summary_info', type=bool, default=True, help="Use summary info.")
+    parser.add_argument('--num_workers', type=int, default=1, 
                        help="Number of worker processes. Defaults to CPU count - 1")
     parser.add_argument('--max_items', type=int, default=999999999, 
                        help="Number of videos to process. Defaults to all.")
@@ -140,6 +140,18 @@ def main():
         os.environ["GRAPH_DATA_PATH"] = "/root/VideoMultiAgents/momaqa_graph_data.json"
         os.environ["IMAGES_DIR_PATH"] = "/root/nas_momaqa/images"
         os.environ["FRAME_NUM"] = "90"
+    elif args.dataset == "intentqa":
+        os.environ["QUESTION_FILE_PATH"] = "intentqa_test_single_graph.json"
+        os.environ["GRAPH_DATA_PATH"] = "intentqa_graph_captions.json"
+        os.environ["CAPTIONS_FILE"] = "intentqa_question_guided_captions.json"
+        os.environ["SUMMARY_CACHE_JSON_PATH"] = "intentqa_summary_cache.json"
+        os.environ["IMAGES_DIR_PATH"] = "images_nextqa"
+        os.environ["FRAME_NUM"] = "180"
+    elif args.dataset == "hourvideo":
+        os.environ["QUESTION_FILE_PATH"] = "/root/VideoMultiAgents/hourvideo_single_video.json"
+        os.environ["CAPTIONS_FILE"] = "/root/VideoMultiAgents/hourvideo_local_captions.json"
+        os.environ["SUMMARY_CACHE_JSON_PATH"] = "/root/VideoMultiAgents/hourvideo_summary_cache.json"
+        os.environ["GRAPH_DATA_PATH"] = "/root/VideoMultiAgents/hourvideo_graph_captions.json"
     else:
         raise ValueError(f"Unknown dataset: {args.dataset}")
 

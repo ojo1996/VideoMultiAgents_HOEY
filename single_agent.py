@@ -92,7 +92,7 @@ def execute_single_agent(tools, use_summary_info):
     print("******************************************************")
 
     # Display truth and prediction if a dataset is specified via environment variable
-    if os.getenv("DATASET") in ["egoschema", "nextqa"]:
+    if os.getenv("DATASET") in ["egoschema", "nextqa", "intentqa", "hourvideo"]:
         if 0 <= prediction_result <= 4:
             print(
                 f"Truth: {target_question_data['truth']}, "

@@ -27,8 +27,12 @@ def retrieve_graph() -> str:
 
     with open(graph_data_file,"r") as f:
         captions_data = json.load(f)
-        
-    caption = captions_data[video_filename]  
+
+    if video_filename not in captions_data:
+        print(f"Video {video_filename} not found in the scene graph data")
+        return []
+
+    caption = captions_data[video_filename]
 
     timestamped_graph = []
 

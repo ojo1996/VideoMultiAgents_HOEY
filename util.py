@@ -461,16 +461,22 @@ def create_star_organizer_prompt():
 
 def set_environment_variables(dataset:str, video_id:str, qa_json_data:dict):
     if dataset == "egoschema": index_name = video_id
+    if dataset == "hourvideo": index_name = video_id
     elif dataset == "nextqa" : index_name = video_id.split("_")[0]
+    elif dataset == "intentqa" : index_name = video_id.split("_")[0]
     elif dataset == "momaqa" : index_name = qa_json_data["video_id"]
+    elif dataset == "hourvideo" : index_name = qa_json_data["video_id"]
 
     if dataset == "egoschema":
         os.environ["VIDEO_FILE_NAME"] = video_id
-    elif dataset == "nextqa":
+    elif dataset == "nextqa" or dataset == "intentqa":
         os.environ["VIDEO_FILE_NAME"] = qa_json_data["map_vid_vidorid"].replace("/", "-")
         os.environ["QUESTION_ID"] = qa_json_data["q_uid"]
     elif dataset == "momaqa":
         os.environ["VIDEO_FILE_NAME"] = qa_json_data["video_id"]
+    elif dataset == "hourvideo":
+        os.environ["VIDEO_FILE_NAME"] = qa_json_data["video_id"]
+
 
     os.environ["SUMMARY_INFO"] = json.dumps(get_video_summary(os.getenv("SUMMARY_CACHE_JSON_PATH"), os.getenv("VIDEO_FILE_NAME")))
 
@@ -482,17 +488,21 @@ def set_environment_variables(dataset:str, video_id:str, qa_json_data:dict):
 
 def post_process(message:str):
 
-    if os.getenv("DATASET") == "egoschema" or os.getenv("DATASET") == "nextqa":
+    if os.getenv("DATASET") == "egoschema" or os.getenv("DATASET") == "nextqa" or os.getenv("DATASET") == "intentqa" or os.getenv("DATASET") == "hourvideo":
         prediction_num = post_process_5choice(message)
         if prediction_num == -1:
             prompt = message + "\n\nPlease retrieve the final answer from the sentence above. Your response should be one of the following options: Option A, Option B, Option C, Option D, Option E."
             response_data = ask_gpt4_omni(openai_api_key=os.getenv("OPENAI_API_KEY"), prompt_text=prompt)
             prediction_num = post_process(response_data)
+        # print ("prediction_num:", prediction_num)
         return prediction_num
     elif os.getenv("DATASET") == "momaqa":
         prompt = message + "\n\nExtract and output only the content that immediately follows \"- Pred:\" on its line. Do not include any additional text or formatting."
         response_data = ask_gpt4_omni(openai_api_key=os.getenv("OPENAI_API_KEY"), prompt_text=prompt)
         return response_data
+    else:
+        print ("*************** Invalid dataset ***************")
+        return -2
 
 
 def post_intermediate_process(message:str):
