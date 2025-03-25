@@ -1,6 +1,15 @@
-# VideoMultiAgent
+# VideoMultiAgents
 
-VideoMultiAgent for Long-Term video understanding.
+## 🧠VideoMultiAgents: A Multi-Agent Framework for Video Question Answering
+![image](./docs/MAS_Report_Figure.svg)
+This is the official implementation of **VideoMultiAgents**, a multi-agent framework for video question answering (VQA). It uses specialized agents for visual, textual, and graph-based reasoning, coordinated by an Organizer Agent. By incorporating question-guided captions and scene graphs, the system enhances multimodal reasoning and supports understanding of long-form videos.
+
+**Our method achieves state-of-the-art zero-shot performance on three benchmark datasets:**
+- **79.0% on Intent-QA (+6.2% over SOTA)**
+- **75.4% on EgoSchema subset (+3.4% over SOTA)**
+- **79.6% on NExT-QA (+0.4% over SOTA)**
+
+[Paper Link](https://xxxxxxxxxxxxxxxxxxxxxxxx)
 
 ## 🔖Prerequisites
 
