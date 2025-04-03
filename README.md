@@ -25,25 +25,27 @@ This is the official implementation of **VideoMultiAgents**, a multi-agent frame
 
         https://github.com/egoschema/EgoSchema
 
-        You can download the Question file of EgoSchemaVQA dataset from the following link:
-
-        This link is from LLoVi's github.
-
-        https://drive.google.com/file/d/13M10CB5ePPVlycn754_ff3CwnpPtDfJA/view?usp=drive_link
-
     - #### NextQA dataset
 
         Raw videos for train/val/test are available at: (https://drive.google.com/file/d/1jTcRCrVHS66ckOUfWRb-rXdzJ52XAWQH/view).
 
         you may need map_vid_vidorID.json to find the videos, avaialble at: https://drive.google.com/file/d/1NFAOQYZ-D0LOpcny8fm0fSzLvN0tNR2A/view?usp=sharing
 
-- ### Step2 : LLoVi Caption Data
+    - #### IntentQA Dataset
+ 
+        This is the official repository for IntentQA  - https://github.com/JoseponLee/IntentQA
+        Please download the original videos from here : https://drive.google.com/drive/folders/1xZG5bt5bEL8L1s29CmeRQPwM3Xx17n8o
 
-    Our model uses the LLoVi caption data. You can download the LLoVi caption data from the following link.
+    - #### HourVideo Demo Dataset
+       Please refer the official repository of Hour Video- https://github.com/keshik6/HourVideo
 
-    https://github.com/CeeZh/LLoVi
+- ### Step2 : Captions, Annotation and Summary Data
 
-    Then use the extract_images_features.py to convert Video files for NextQA dataset into frames and csv2json.py to convert val.csv to nextqa.json
+    Our model uses the question guided gpt 4o caption data. You can download the caption data, QA data and summary data from the following release link-
+
+    https://github.com/PanasonicConnect/VideoMultiAgents/releases/tag/for_file_share
+
+Then use the extract_images_features.py to convert Video files for NextQA dataset into frames and csv2json.py to convert val.csv to nextqa.json
 
 ## 🐋Container and Parameters Setting
 
