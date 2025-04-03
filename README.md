@@ -51,7 +51,7 @@ Then use the extract_images_features.py to convert Video files for NextQA datase
 
 - ### Step1 : set the environment variables
 
-    Our model uses the OpenAI. So, Please set the api-key into the .env file
+    Our model uses the OpenAI and Google Gemini APIs. So, Please set the proper api-key into the .env file
 
 - ### Step2 : set the variables
 
