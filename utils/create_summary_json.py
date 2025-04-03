@@ -88,7 +88,7 @@ def create_summary_of_video(openai_api_key="", temperature=0.0, image_dir="", vi
         temp_frames.append({ "type": "image_url", "image_url": { "url": data_url, "detail": detail } })
 
         if len(temp_frames) == segment_frames_num or i == len(sampled_frame_path_list) - 1:
-            response = openai.ChatCompletion.create(
+            response = openai.Client().chat.completions.create(
                 model=model_name,
                 messages=[
                     { "role": "system", "content": system_prompt },
@@ -112,7 +112,7 @@ def create_summary_of_video(openai_api_key="", temperature=0.0, image_dir="", vi
         end_sec = start_sec + sampling_interval_sec * segment_frames_num
         detail_summaries += f"--- Segment {start_sec}-{end_sec} sec ---\n {summary}\n\n"
 
-    response = openai.ChatCompletion.create(
+    response = openai.Client().chat.completions.create(
         model=model_name,
         messages=[
             { "role": "system", "content": system_prompt_entire },

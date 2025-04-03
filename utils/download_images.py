@@ -6,8 +6,7 @@ import tqdm
 import json
 
 # Azure Storage connection string
-AZURE_STORAGE_CONNECTION_STRING = "DefaultEndpointsProtocol=https;AccountName=blobnextqaimages;AccountKey=Hq4406t+VrJCyb2lBTDVQY306p2S/sSf1UV/a2pPQ9VAYAMi7+ziztblfKajOmbAoDJipyrjnY/I+AStVI27AQ==;EndpointSuffix=core.windows.net"
-
+AZURE_STORAGE_CONNECTION_STRING = "Your_Azure_Storage_Connection_String"
 # Local directory where the containers' contents will be downloaded
 DESTINATION_DIRECTORY = "data/nextqa/frames_aligned/"
 

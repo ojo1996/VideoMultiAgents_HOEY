@@ -44,6 +44,7 @@ RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN pip3 install -U pip
 COPY requirements.txt requirements.txt
 RUN pip install -r requirements.txt
+RUN python -m spacy download en_core_web_sm
 WORKDIR /root
 
 # Set up the Bash shell environment

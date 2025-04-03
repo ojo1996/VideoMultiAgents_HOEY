@@ -106,7 +106,7 @@ def main():
     parser = argparse.ArgumentParser(description="Dataset to use for the analysis")
     parser.add_argument('--dataset', type=str, help="Example: egoschema, nextqa, etc.")
     parser.add_argument('--modality', type=str, help="Example: video, text, graph, all.")
-    parser.add_argument('--agents', type=str, help="Example: single, multi-star.")
+    parser.add_argument('--agents', type=str, help="Example: single, multi_star.")
     parser.add_argument('--use_summary_info', type=bool, default=True, help="Use summary info.")
     parser.add_argument('--num_workers', type=int, default=1, 
                        help="Number of worker processes. Defaults to CPU count - 1")
@@ -117,41 +117,39 @@ def main():
     # Set dataset-specific environment variables
     os.environ["DATASET"] = args.dataset
     if args.dataset == "egoschema":
-        os.environ["QUESTION_FILE_PATH"] = f"data/egoschema/fullset_{args.agents}_{args.modality}.json"
-        os.environ["CAPTIONS_FILE"] = "data/egoschema/egoschema_captions_gpt4o_caption_guided.json"
-        os.environ["GRAPH_DATA_PATH"] = "data/egoschema/egoschema_graph_captions.json"
-        os.environ["SUMMARY_CACHE_JSON_PATH"] = "data/egoschema/egoschema_summary_cache.json"
-        os.environ["VIDEOTREE_RESULTS_PATH"] = "data/egoschema/egoschema_videotree_result.json"
-        os.environ["VIDEO_DIR_PATH"] = "/simurgh/u/akhatua/VideoMultiAgents/data/egoschema"
+        os.environ["QUESTION_FILE_PATH"] = f"path/to/egoschema/fullset_{args.agents}_{args.modality}.json"
+        os.environ["CAPTIONS_FILE"] = "path/to/egoschema_captions_gpt4o_caption_guided.json"
+        os.environ["GRAPH_DATA_PATH"] = "path/to/egoschema_graph_captions.json"
+        os.environ["SUMMARY_CACHE_JSON_PATH"] = "path/to/egoschema_summary_cache.json"
+        os.environ["VIDEO_DIR_PATH"] = "path/to/egoschema/videos"
         os.environ["FRAME_NUM"] = "180"
     elif args.dataset == "nextqa":
-        os.environ["QUESTION_FILE_PATH"] = f"data/nextqa/val_{args.agents}_{args.modality}.json"
-        os.environ["GRAPH_DATA_PATH"] = "data/nextqa/nextqa_graph_captions_gpt4o.json"
-        os.environ["CAPTIONS_FILE"] = "data/nextqa/captions_gpt4o_question_guided.json"
-        os.environ["SUMMARY_CACHE_JSON_PATH"] = "data/nextqa/nextqa_summary_cache_val.json"
-        os.environ["IMAGES_DIR_PATH"] = "data/nextqa/frames_aligned/"
-        os.environ["VIDEO_DIR_PATH"] = "/simurgh/u/akhatua/VideoMultiAgents/data/nextqa/NExTVideo"
+        os.environ["QUESTION_FILE_PATH"] = f"path/to/nextqa/val_{args.agents}_{args.modality}.json"
+        os.environ["GRAPH_DATA_PATH"] = "path/to/nextqa_graph_captions_gpt4o.json"
+        os.environ["CAPTIONS_FILE"] = "path/to/nextqa_captions_gpt4o_question_guided.json"
+        os.environ["SUMMARY_CACHE_JSON_PATH"] = "path/to/nextqa_summary_cache_val.json"
+        os.environ["IMAGES_DIR_PATH"] = "path/to/nextqa/frames_aligned/"
+        os.environ["VIDEO_DIR_PATH"] = "path/to/NExTVideo"
         os.environ["FRAME_NUM"] = "180"
     elif args.dataset == "momaqa":
-        os.environ["QUESTION_FILE_PATH"] = "/root/VideoMultiAgents/momaqa_test_anno.json"
-        os.environ["CAPTIONS_FILE"] = "/root/VideoMultiAgents/momaqa_captions.json"
-        os.environ["SUMMARY_CACHE_JSON_PATH"] = "/root/VideoMultiAgents/momaqa_summary_cache.json"
-        os.environ["VIDEOTREE_RESULTS_PATH"] = "/root/VideoMultiAgents/momaqa_videotree_result.json"
-        os.environ["GRAPH_DATA_PATH"] = "/root/VideoMultiAgents/momaqa_graph_data.json"
-        os.environ["IMAGES_DIR_PATH"] = "/root/nas_momaqa/images"
+        os.environ["QUESTION_FILE_PATH"] = "path/to/momaqa_test_anno.json"
+        os.environ["CAPTIONS_FILE"] = "path/to/momaqa_captions.json"
+        os.environ["SUMMARY_CACHE_JSON_PATH"] = "path/to/momaqa_summary_cache.json"
+        os.environ["GRAPH_DATA_PATH"] = "path/to/momaqa_graph_data.json"
+        os.environ["IMAGES_DIR_PATH"] = "path/to/momaqa/images"
         os.environ["FRAME_NUM"] = "90"
     elif args.dataset == "intentqa":
-        os.environ["QUESTION_FILE_PATH"] = "intentqa_test_single_graph.json"
-        os.environ["GRAPH_DATA_PATH"] = "intentqa_graph_captions.json"
-        os.environ["CAPTIONS_FILE"] = "intentqa_question_guided_captions.json"
-        os.environ["SUMMARY_CACHE_JSON_PATH"] = "intentqa_summary_cache.json"
-        os.environ["IMAGES_DIR_PATH"] = "images_nextqa"
+        os.environ["QUESTION_FILE_PATH"] = f"path/to/intentqa_test_{args.agents}_{args.modality}.json"
+        os.environ["GRAPH_DATA_PATH"] = "path/to/intentqa_graph_captions.json"
+        os.environ["CAPTIONS_FILE"] = "path/to/intentqa_question_guided_captions.json"
+        os.environ["SUMMARY_CACHE_JSON_PATH"] = "path/to/intentqa_summary_cache.json"
+        os.environ["IMAGES_DIR_PATH"] = "path/to/images_nextqa"
         os.environ["FRAME_NUM"] = "180"
     elif args.dataset == "hourvideo":
-        os.environ["QUESTION_FILE_PATH"] = "/root/VideoMultiAgents/hourvideo_single_video.json"
-        os.environ["CAPTIONS_FILE"] = "/root/VideoMultiAgents/hourvideo_local_captions.json"
-        os.environ["SUMMARY_CACHE_JSON_PATH"] = "/root/VideoMultiAgents/hourvideo_summary_cache.json"
-        os.environ["GRAPH_DATA_PATH"] = "/root/VideoMultiAgents/hourvideo_graph_captions.json"
+        os.environ["QUESTION_FILE_PATH"] = "path/to/hourvideo_single_video.json"
+        os.environ["CAPTIONS_FILE"] = "path/to/hourvideo_local_captions.json"
+        os.environ["SUMMARY_CACHE_JSON_PATH"] = "path/to/hourvideo_summary_cache.json"
+        os.environ["GRAPH_DATA_PATH"] = "path/to/hourvideo_graph_captions.json"
     else:
         raise ValueError(f"Unknown dataset: {args.dataset}")
 

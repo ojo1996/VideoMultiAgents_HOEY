@@ -80,12 +80,13 @@ def send_images_to_gpt4o(image_bytes_list, prompt, api_key):
                 "content": [{"type": "text", "text": prompt}] + images_payload
             }
         ]
-        response = openai.ChatCompletion.create(
+        response = openai.Client().chat.completions.create(
             model="gpt-4o",
             messages=messages,
             max_tokens=150
         )
-        caption = response["choices"][0]["message"]["content"].strip()
+
+        caption = response.choices[0].message.content.strip()  
         return caption
     except Exception as e:
         print(f"Error in send_images_to_gpt4o: {e}")
