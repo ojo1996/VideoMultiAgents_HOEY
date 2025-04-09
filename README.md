@@ -78,19 +78,15 @@ Then use the extract_images_features.py to convert Video files for NextQA datase
 
     - EgoSchema Dataset
 
-        `python3 main.py --dataset=egoschema`
+        `python3 main.py --dataset=egoschema --modality=modality --agents=agents`
 
     - Next-QA Dataset
 
-        `python3 main.py --dataset=nextqa`
+        `python3 main.py --dataset=nextqa --modality=modality --agents=agents`
 
     - IntentQA Dataset (WIP)
 
-        `python3 main.py --dataset=intentqa`
-
-    - iVQA Dataset (WIP)
-
-        `python3 main.py --dataset=ivqa`
+        `python3 main.py --dataset=intentqa --modality=modality --agents=agents`
 
 ### Appendix
 -   Run with multiple containers
