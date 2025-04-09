@@ -17,8 +17,9 @@ services:
     volumes:
       - /mnt/ms1_nas/Ego4D/:/root/nas_Ego4D
       - /mnt/ms1_nas/nextqa/:/root/nas_nextqa
+      - /mnt/ms1_nas/IntentQA/:/root/nas_intentqa
       - ../:/root/VideoMultiAgents
     env_file:
       - .env
     working_dir: /root/VideoMultiAgents
-    command: python3 main.py --dataset=egoschema
+    # command: python3 main.py --dataset=egoschema
