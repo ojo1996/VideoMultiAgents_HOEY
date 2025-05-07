@@ -9,7 +9,7 @@ This is the official implementation of **VideoMultiAgents**, a multi-agent frame
 - **75.4% on EgoSchema subset (+3.4% over SOTA)**
 - **79.6% on NExT-QA (+0.4% over SOTA)**
 
-[Paper Link](https://xxxxxxxxxxxxxxxxxxxxxxxx)
+[Arxiv](https://arxiv.org/abs/2504.20091)
 
 ## 🔖Prerequisites
 
