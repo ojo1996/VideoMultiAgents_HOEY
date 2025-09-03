@@ -4,46 +4,52 @@ import json
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-from langchain.agents import create_openai_tools_agent, AgentExecutor
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 # Import utility functions (e.g., for post-processing and question sentence generation)
 from util import post_process, create_question_sentence, prepare_intermediate_steps
 
-# Retrieve the OpenAI API key from the environment
-openai_api_key = os.getenv("OPENAI_API_KEY")
+# Retrieve the Gemini API key from the environment
+gemini_api_key = os.getenv("GEMINI_API_KEY")
 
-# Instantiate the LLM with appropriate configurations
-llm_openai = ChatOpenAI(
-    api_key=openai_api_key,
-    model='gpt-4o',
+# Instantiate the Gemini LLM
+llm_gemini = ChatGoogleGenerativeAI(
+    api_key=gemini_api_key,
+    model="gemini-2.5-flash",
     temperature=0.7,
-    disable_streaming=True
+    streaming=False
 )
 
 def create_agent(llm, tools: list, system_prompt: str):
     """
-    Create an agent with the given system prompt and tools.
+    Create a Gemini agent with the given system prompt and tools.
+    Gemini does not support system messages, so merge the system prompt into the first human message.
     """
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            SystemMessage(content=system_prompt),
-            MessagesPlaceholder(variable_name="messages"),
-            MessagesPlaceholder(variable_name="agent_scratchpad"),
-        ]
-    )
-    agent = create_openai_tools_agent(llm, tools, prompt)
-    executor = AgentExecutor(agent=agent, tools=tools, return_intermediate_steps=True)
-    return executor
+    llm_with_tools = llm.bind_tools(tools)
 
-def execute_single_agent(tools, use_summary_info):
+    def agent_executor(question_sentence):
+        # Merge system prompt and question into one HumanMessage
+        message = HumanMessage(content=f"{system_prompt}\n\n{question_sentence}")
+        # Gemini expects a list of messages
+        return llm_with_tools.invoke([message])
+
+    return agent_executor
+
+def execute_single_agent(tools, use_summary_info=False):
     """
     Execute the VideoQuestionAnswering task using a single agent.
 
-    The agent's task is to analyze the video using available tools and select the most plausible answer
+    The agent's task is to analyze the video using the available tools and select the most plausible answer
     among the five options provided.
     """
-    # Load the question data from an environment variable
+    # Load the question and answer data from an environment variable
     target_question_data = json.loads(os.getenv("QA_JSON_STR"))
+    video_id = os.environ["VIDEO_FILE_NAME"]
+    answers = json.loads(os.getenv("ANSWERS_JSON_STR"))
+
+    if video_id not in answers.keys():
+        #print(f"Skipping: {video_id} because it lacks an answer.")
+        raise ValueError(f"Video {video_id} does not have an answer in the answers file.")
 
     # Create a system prompt that outlines the task instructions only
     system_prompt = (
@@ -63,39 +69,38 @@ def execute_single_agent(tools, use_summary_info):
     question_sentence = create_question_sentence(target_question_data)
 
     # Create the single agent with the defined system prompt and tools
-    single_agent = create_agent(llm_openai, tools, system_prompt=system_prompt)
+    single_agent = create_agent(llm_gemini, tools, system_prompt=system_prompt)
 
     # Print the input message for debugging purposes
-    print("******** Single Agent Input Message **********")
-    print(question_sentence)
-    print("*****************************************************")
+    #print("******** Single Agent Input Message **********")
+    #print(question_sentence)
+    #print("*****************************************************")
 
-    # Create the input state message with the question sentence
-    state = {"messages": [HumanMessage(content=question_sentence, name="system")]}
-    result = single_agent.invoke(state)
-    output_content = result["output"]
+    # Call the agent function directly
+    result = single_agent(question_sentence)
+    output_content = result.content 
 
     # Process the output result (e.g., converting answer to expected format)
     prediction_result = post_process(output_content)
 
     # If the result is invalid, retry the task
     if prediction_result == -1:
-        print("***********************************************************")
-        print("Error: The result is -1. Retrying VideoQuestionAnswering with the single agent.")
-        print("***********************************************************")
+        #print("***********************************************************")
+        #print("Error: The result is -1. Retrying VideoQuestionAnswering with the single agent.")
+        #print("***********************************************************")
         time.sleep(1)
         return execute_single_agent(tools)
 
     # Print the result for debugging purposes
-    print("*********** Single Agent Result **************")
-    print(output_content)
-    print("******************************************************")
+    #print("*********** Single Agent Result **************")
+    #print(output_content)
+    #print("******************************************************")
 
     # Display truth and prediction if a dataset is specified via environment variable
     if os.getenv("DATASET") in ["egoschema", "nextqa", "intentqa", "hourvideo"]:
         if 0 <= prediction_result <= 4:
             print(
-                f"Truth: {target_question_data['truth']}, "
+                f"Truth: {answers[video_id]}, "
                 f"Pred: {prediction_result} (Option {['A', 'B', 'C', 'D', 'E'][prediction_result]})"
             )
         else:
@@ -105,11 +110,12 @@ def execute_single_agent(tools, use_summary_info):
     print("******************************************************")
 
     # Build additional outputs for debugging and traceability
-    intermediates = prepare_intermediate_steps(result.get("intermediate_steps", []))
-    agents_result_dict = {"output": output_content, "intermediate_steps": intermediates}
+    print(result.tool_calls)
+
+    agents_result_dict = {"output": output_content, "tool_calls": result.tool_calls}
     agent_prompts = {"system_prompt": system_prompt}
 
-    return prediction_result, agents_result_dict, agent_prompts
+    return prediction_result, agents_result_dict, agent_prompts, result.tool_calls
 
 if __name__ == "__main__":
     execute_single_agent([])

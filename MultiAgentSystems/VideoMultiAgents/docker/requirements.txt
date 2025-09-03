@@ -3,7 +3,7 @@ opencv-python==4.11.0.86
 retry==0.9.2
 portalocker==2.10.1
 filelock==3.18.0
-openai==1.37.1
+openai==1.102.0
 langchain-openai==0.1.20 
 langchain==0.2.17
 langgraph==0.3.24
@@ -16,3 +16,5 @@ mlflow==2.16.2
 google-genai==1.9.0
 python-dotenv==1.1.0
 spacy==3.8.5
+langchain-google-genai
+icecream

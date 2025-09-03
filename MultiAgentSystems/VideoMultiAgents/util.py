@@ -15,6 +15,7 @@ import numpy as np
 from typing import Literal
 from google import genai
 from google.genai import types
+from icecream import ic
 
 # Function to encode a local image into data URL
 def local_image_to_data_url(image_path):
@@ -459,23 +460,11 @@ def create_star_organizer_prompt():
     return organizer_prompt
 
 
-def set_environment_variables(dataset:str, video_id:str, qa_json_data:dict):
+def set_environment_variables(dataset:str, video_id:str, qa_json_data:dict, answers_json_data: dict):
     if dataset == "egoschema": index_name = video_id
-    if dataset == "hourvideo": index_name = video_id
-    elif dataset == "nextqa" : index_name = video_id.split("_")[0]
-    elif dataset == "intentqa" : index_name = video_id.split("_")[0]
-    elif dataset == "momaqa" : index_name = qa_json_data["video_id"]
-    elif dataset == "hourvideo" : index_name = qa_json_data["video_id"]
 
     if dataset == "egoschema":
         os.environ["VIDEO_FILE_NAME"] = video_id
-    elif dataset == "nextqa" or dataset == "intentqa":
-        os.environ["VIDEO_FILE_NAME"] = qa_json_data["map_vid_vidorid"].replace("/", "-")
-        os.environ["QUESTION_ID"] = qa_json_data["q_uid"]
-    elif dataset == "momaqa":
-        os.environ["VIDEO_FILE_NAME"] = qa_json_data["video_id"]
-    elif dataset == "hourvideo":
-        os.environ["VIDEO_FILE_NAME"] = qa_json_data["video_id"]
 
 
     os.environ["SUMMARY_INFO"] = json.dumps(get_video_summary(os.getenv("SUMMARY_CACHE_JSON_PATH"), os.getenv("VIDEO_FILE_NAME")))
@@ -483,7 +472,9 @@ def set_environment_variables(dataset:str, video_id:str, qa_json_data:dict):
     os.environ["VIDEO_INDEX"]     = index_name
     os.environ["QA_JSON_STR"]     = json.dumps(qa_json_data)
 
-    print ("{} : {}".format(video_id, index_name))
+    os.environ["ANSWERS_JSON_STR"] = json.dumps(answers_json_data)
+    
+    #print ("{} : {}".format(video_id, index_name))
 
 
 def post_process(message:str):
@@ -492,7 +483,7 @@ def post_process(message:str):
         prediction_num = post_process_5choice(message)
         if prediction_num == -1:
             prompt = message + "\n\nPlease retrieve the final answer from the sentence above. Your response should be one of the following options: Option A, Option B, Option C, Option D, Option E."
-            response_data = ask_gpt4_omni(openai_api_key=os.getenv("OPENAI_API_KEY"), prompt_text=prompt)
+            response_data = ask_gemini(prompt)
             prediction_num = post_process(response_data)
         # print ("prediction_num:", prediction_num)
         return prediction_num
@@ -610,24 +601,33 @@ def unmark_as_processing(file_path, video_id):
         return True
     return False
 
+def save_result(file_path, agent_name:str, video_id:str, agent_prompts:dict, agent_response:dict, prediction_result:int, tool_calls:list, save_backup=False):
+    print("SAVING")
+    if not os.path.exists(file_path):
+        with open(file_path, "w") as f:
+            json.dump({}, f)
+        print(f"Created new result file: {file_path}")
 
-def save_result(file_path, video_id:str, agent_prompts:dict, agent_response:dict, prediction_result:int, save_backup=False):
-    questions = read_json_file(file_path)
 
-    questions[video_id]["agent_prompts"] = agent_prompts
-    questions[video_id]["response"] = agent_response
-    questions[video_id]["pred"] = prediction_result
-    # if result == -1:
-    #     # use random value 0 to 4
-    #     questions[video_id]["pred"] = random.randint(0, 4)
-    #     questions[video_id]["invalid"] = "true"
-    # else:
-    #     questions[video_id]["pred"] = result
+    results = read_json_file(file_path)
+
+    # Ensure keys exist
+    if video_id not in results:
+        results[video_id] = {}
+    if agent_name not in results[video_id]:
+        results[video_id][agent_name] = {}
+
+    results[video_id][agent_name]["agent_prompts"] = agent_prompts
+    results[video_id][agent_name]["response"] = agent_response
+    results[video_id][agent_name]["prediction"] = prediction_result
+    results[video_id][agent_name]["tool_calls"] = tool_calls
 
     # save result
     lock = FileLock(file_path + '.lock')
     with lock, open(file_path, "w") as f:
-        json.dump(questions, f, indent=4)
+        json.dump(results, f, indent=4)
+        #print(f"Saving this data: {results[video_id][agent_name]} to file_path for video: {video_id}")
+    #print(f"Saved results for video_id={video_id}, agent_name={agent_name}")
 
     # Backup
     from datetime import datetime
@@ -636,7 +636,8 @@ def save_result(file_path, video_id:str, agent_prompts:dict, agent_response:dict
         time_str = current_time.strftime('%Y-%m-%d %H:%M:%S') + ".json"
         lock = FileLock(file_path + '.lock')
         with lock, open("backup_" + time_str, "w") as f:
-            json.dump(questions, f, indent=4)
+            json.dump(results, f, indent=4)
+        print(f"Backup saved: backup_{time_str}")
 
 
 def get_video_summary(summary_cache_json_path:str, vid:str):
