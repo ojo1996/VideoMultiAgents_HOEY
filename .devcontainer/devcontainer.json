@@ -1,0 +1,38 @@
+{
+  "name": "AFM CodeAgent Eval Dev",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "runArgs": ["--gpus", "all"],
+  "containerEnv": {
+    "PYTHONUNBUFFERED": "1",
+    "PIP_NO_CACHE_DIR": "1",
+    "HF_HOME": "/workspace/.cache/huggingface",
+    "TRANSFORMERS_CACHE": "/workspace/.cache/huggingface/transformers"
+  },
+  "remoteEnv": {
+    "HF_TOKEN": "${localEnv:HF_TOKEN}"
+  },
+  "mounts": [
+    "source=${localWorkspaceFolder},target=/workspace,type=bind",
+    "source=afm_hf_cache,target=/workspace/.cache/huggingface,type=volume"
+  ],
+  "workspaceFolder": "/workspace",
+  "postCreateCommand": "bash .devcontainer/postCreate.sh",
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-toolsai.jupyter",
+        "ms-azuretools.vscode-docker"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/opt/conda/bin/python"
+      }
+    }
+  }
+}

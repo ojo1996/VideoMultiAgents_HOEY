@@ -34,10 +34,6 @@ huggingface-cli download PersonalAILab/AFM-MHQA-Agent-3B-sft `
   --local-dir models\AFM-MHQA-Agent-3B-sft `
   --local-dir-use-symlinks False
 
-huggingface-cli download PersonalAILab/AFM-MHQA-Agent-3B-rl `
-  --local-dir models\AFM-MHQA-Agent-3B-rl `
-  --local-dir-use-symlinks False
-
 # Generate the resoning vector and apply it with various alphas
 python generate_merged_models.py `
   --base_model Qwen/Qwen2.5-3B `
