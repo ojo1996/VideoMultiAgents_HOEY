@@ -18,6 +18,12 @@ pip install -e ./mergekit
 
 # model downloads
 mkdir -p models
+
+echo "[*] Downloading Qwen2.5-7B..."
+huggingface-cli download Qwen/Qwen2.5-7B \
+  --local-dir models/AFM-CodeAgent-7B-rl \
+  --local-dir-use-symlinks False
+
 echo "[*] Downloading AFM-CodeAgent-7B-sft..."
 huggingface-cli download PersonalAILab/AFM-CodeAgent-7B-sft \
   --local-dir models/AFM-CodeAgent-7B-sft \
