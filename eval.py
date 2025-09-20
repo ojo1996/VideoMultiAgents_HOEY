@@ -49,6 +49,7 @@ def run_eval_for_model(model_dir: Path, dataset: str, logger):
             "--gen_kwargs", "max_gen_toks=2048",
             "--log_samples",
             "--output_path", str(out_dir),
+            "--confirm_run_unsafe_code",
         ]
 
         log(f"[cmd] {' '.join(cmd)}")
@@ -127,6 +128,8 @@ def main():
         return
 
     RESULTS_ROOT.mkdir(parents=True, exist_ok=True)
+
+    os.environ["HF_ALLOW_CODE_EVAL"] = "1"
 
     # Overall run log
     run_log = RESULTS_ROOT / f"_run__{dataset}.log"
