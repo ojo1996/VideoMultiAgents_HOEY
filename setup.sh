@@ -16,8 +16,6 @@ pip install -e ./lm-evaluation-harness
 [[ -d mergekit ]] || git clone https://github.com/arcee-ai/mergekit.git
 pip install -e ./mergekit
 
-[[ -d VideoMultiAgents_HOEY ]] || git clone https://github.com/ojo1996/VideoMultiAgents_HOEY.git
-
 # model downloads
 mkdir -p models
 echo "[*] Downloading AFM-CodeAgent-7B-sft..."
