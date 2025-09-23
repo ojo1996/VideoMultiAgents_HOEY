@@ -1,0 +1,15 @@
+{
+  "info": {
+    "exit_status": "CalledProcessError",
+    "submission": "Command '['docker', 'run', '-d', '--name', 'minisweagent-a0f17713', '-w', '/testbed', '--rm', 'docker.io/swebench/sweb.eval.x86_64.django_1776_django-10554:latest', 'sleep', '2h']' returned non-zero exit status 127.",
+    "model_stats": {
+      "instance_cost": 0.0,
+      "api_calls": 0
+    },
+    "mini_version": "1.13.0",
+    "traceback": "Traceback (most recent call last):\n  File \"C:\\Development\\ReasoningVectors\\agent_systems\\mini_swe_agent\\src\\minisweagent\\run\\extra\\swebench.py\", line 144, in process_instance\n    env = get_sb_environment(config, instance)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Development\\ReasoningVectors\\agent_systems\\mini_swe_agent\\src\\minisweagent\\run\\extra\\swebench.py\", line 88, in get_sb_environment\n    env = get_environment(env_config)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Development\\ReasoningVectors\\agent_systems\\mini_swe_agent\\src\\minisweagent\\environments\\__init__.py\", line 31, in get_environment\n    return get_environment_class(environment_class)(**config)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Development\\ReasoningVectors\\agent_systems\\mini_swe_agent\\src\\minisweagent\\environments\\docker.py\", line 44, in __init__\n    self._start_container()\n  File \"C:\\Development\\ReasoningVectors\\agent_systems\\mini_swe_agent\\src\\minisweagent\\environments\\docker.py\", line 66, in _start_container\n    result = subprocess.run(\n             ^^^^^^^^^^^^^^^\n  File \"C:\\Program Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\\Lib\\subprocess.py\", line 571, in run\n    raise CalledProcessError(retcode, process.args,\nsubprocess.CalledProcessError: Command '['docker', 'run', '-d', '--name', 'minisweagent-a0f17713', '-w', '/testbed', '--rm', 'docker.io/swebench/sweb.eval.x86_64.django_1776_django-10554:latest', 'sleep', '2h']' returned non-zero exit status 127.\n"
+  },
+  "messages": [],
+  "trajectory_format": "mini-swe-agent-1",
+  "instance_id": "django__django-10554"
+}
