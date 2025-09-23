@@ -1,13 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ---- config ----
-HF_TOKEN="${HF_TOKEN:-}"   # assumes you exported this before running
 PROJECT_DIR=$(pwd)
 
-echo "[*] Setting up AFM-CodeAgent-7B environment in $PROJECT_DIR"
-python3 -m venv .venv
-source .venv/bin/activate
+echo "[*] Setting up AFM-CodeAgent-7B environment"
 
 python -m pip install --upgrade pip wheel setuptools
 pip install "huggingface_hub[cli]>=0.23" accelerate transformers datasets \
@@ -32,6 +28,11 @@ huggingface-cli download PersonalAILab/AFM-CodeAgent-7B-sft \
 echo "[*] Downloading AFM-CodeAgent-7B-rl..."
 huggingface-cli download PersonalAILab/AFM-CodeAgent-7B-rl \
   --local-dir models/AFM-CodeAgent-7B-rl \
+  --local-dir-use-symlinks False
+
+echo "[*] Downloading Qwen2.5-7B-Instruct..."
+huggingface-cli download Qwen/Qwen2.5-7B-Instruct \
+  --local-dir models/Qwen2.5-7B-Instruct \
   --local-dir-use-symlinks False
 
 echo "[✓] Setup complete. Activate venv anytime with:"
