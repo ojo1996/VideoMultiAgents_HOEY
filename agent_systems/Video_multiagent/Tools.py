@@ -41,24 +41,6 @@ class FrameSampler:
             latency_ms=int((time.time() - t0) * 1000),
         )
 
-class OCRTool:
-    """Stub: placeholder OCR."""
-    def __init__(self):
-        self.name = "ocr"
-
-    def __call__(self, frames_info: str) -> ToolResult:
-        t0 = time.time()
-        text = f"ocr_text=<'no real ocr'; frames_info='{frames_info[:80]}...'>"
-        return ToolResult(
-            name=self.name,
-            args={"frames_info": frames_info},
-            stdout=text,
-            stderr="",
-            returncode=0,
-            artifacts=[],
-            latency_ms=int((time.time() - t0) * 1000),
-        )
-
 class TemporalReasoner:
     """Stub: simple heuristic (replace with LLM later)."""
     def __init__(self):
