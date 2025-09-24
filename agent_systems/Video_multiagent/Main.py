@@ -1,6 +1,6 @@
 import argparse, json, os, uuid, datetime
 from typing import Dict, Any
-from .Tools import FrameSampler, OCRTool, TemporalReasoner, ToolResult
+from Tools import FrameSampler, TemporalReasoner, ToolResult
 
 def now_iso():
     return datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
@@ -34,11 +34,10 @@ def run_episode(video_path: str, question: str, out_path: str):
     }
 
     sampler = FrameSampler(num_frames=8)
-    ocr = OCRTool()
     reasoner = TemporalReasoner()
 
     turn = 1
-    run["steps"] += new_step(turn, "PLAN", f"PLAN: sample frames, run OCR, then answer: '{question}'.")
+    run["steps"] += new_step(turn, "PLAN", f"PLAN: sample frames, then answer: '{question}'.")
 
     turn += 1
     res1: ToolResult = sampler(video_path)
@@ -50,16 +49,7 @@ def run_episode(video_path: str, question: str, out_path: str):
     )
 
     turn += 1
-    res2: ToolResult = ocr(res1.stdout)
-    run["steps"] += new_step(
-        turn, "EXEC",
-        "EXEC: OCR the sampled frames.",
-        "ocr_text = OCRTool()(frames_info)",
-        {"returncode": res2.returncode, "stdout": res2.stdout},
-    )
-
-    turn += 1
-    res3: ToolResult = reasoner(question, {"frames": res1.stdout, "ocr": res2.stdout})
+    res3: ToolResult = reasoner(question, {"frames": res1.stdout})
     run["steps"] += new_step(
         turn, "FINALIZE",
         "FINALIZE: aggregate evidence and provide answer.",
@@ -68,7 +58,7 @@ def run_episode(video_path: str, question: str, out_path: str):
     )
 
     run["end_time"] = now_iso()
-    run["success"] = (res1.returncode == 0 and res2.returncode == 0 and res3.returncode == 0)
+    run["success"] = (res1.returncode == 0  and res3.returncode == 0)
     run["stop_reason"] = "solved" if run["success"] else "error"
 
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
@@ -83,4 +73,5 @@ if __name__ == "__main__":
     ap.add_argument("-o", "--out", default=None)
     args = ap.parse_args()
     out_path = args.out or f"data/raw/{uuid.uuid4()}.traj.json"
+    print("video:", args.video)
     run_episode(args.video, args.question, out_path)

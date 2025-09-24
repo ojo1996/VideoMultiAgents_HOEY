@@ -1,6 +1,6 @@
 import argparse, json, os, uuid, datetime
 from typing import Dict, Any, Optional
-from .Tools import BM25SearchTool, DenseSearchTool, HybridMergeTool, HeuristicReader, ToolResult
+from Tools import BM25SearchTool, DenseSearchTool, HybridMergeTool, HeuristicReader, ToolResult
 
 def now_iso():
     return datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
