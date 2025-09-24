@@ -1,0 +1,57 @@
+{
+  "info": {
+    "exit_status": "Submitted",
+    "submission": "--- a/example.py\n+++ b/example.py\n@@ -1,2 +1,2 @@\n-print('Hello world')\n+print('Hello Django')",
+    "model_stats": { "instance_cost": 0.02, "api_calls": 3 },
+    "mini_version": "1.13.0",
+    "config": {
+      "agent": {
+        "system_template": "You are a helpful coding agent.",
+        "step_limit": 5,
+        "cost_limit": 0.5
+      },
+      "model": {
+        "model_name": "gemini-2.5-flash",
+        "model_kwargs": { "temperature": 0.2 }
+      },
+      "environment": {
+        "image": "docker.io/swebench/test-env:latest",
+        "cwd": "/testbed",
+        "timeout": 120,
+        "run_args": ["--rm"]
+      },
+      "agent_type": "minisweagent.agents.BasicAgent",
+      "model_type": "minisweagent.models.litellm_model.LitellmModel",
+      "environment_type": "minisweagent.environment.SandboxEnv"
+    }
+  },
+  "messages": [
+    {
+      "role": "system",
+      "content": "Use exactly ONE bash code block per turn."
+    },
+    {
+      "role": "user",
+      "content": "Task: Fix print message to say 'Hello Django'"
+    },
+    {
+      "role": "assistant",
+      "content": "THOUGHT: I will open the file and edit it.\n```bash\nsed -i \"s/Hello world/Hello Django/\" example.py\n```",
+      "extra": {
+        "response": {
+          "id": "chatcmpl-123",
+          "model": "gemini-2.5-flash",
+          "usage": { "prompt_tokens": 50, "completion_tokens": 25, "total_tokens": 75 }
+        }
+      }
+    },
+    {
+      "role": "user",
+      "content": "<returncode>0</returncode><output>(no output)</output>"
+    },
+    {
+      "role": "assistant",
+      "content": "THOUGHT: The change succeeded. I will submit the patch."
+    }
+  ]
+}
