@@ -123,6 +123,26 @@ def main():
 
     def write_run_card(target_dir: Path, card: Dict[str, object]):
         target_dir.mkdir(parents=True, exist_ok=True)
+        # Enrich with tokenizer/model fingerprints if available
+        try:
+            tok = AutoTokenizer.from_pretrained(card.get("base") or card.get("sft") or card.get("rl") or "", trust_remote_code=True)
+            card["tokenizer_sha"] = getattr(tok, "_commit_hash", None)
+            card["vocab_size"] = getattr(tok, "vocab_size", None)
+        except Exception:
+            pass
+        # Repo/git fingerprints if available
+        try:
+            import subprocess
+            git_commit = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+            card["git_commit"] = git_commit
+        except Exception:
+            card["git_commit"] = None
+        # requirements hash (best-effort)
+        try:
+            req = Path("requirements.txt")
+            card["requirements_hash"] = (req.read_text(encoding="utf-8").__hash__() if req.exists() else None)
+        except Exception:
+            card["requirements_hash"] = None
         with open(target_dir / "run_card.json", "w", encoding="utf-8") as f:
             json.dump(card, f, ensure_ascii=False, indent=2)
 

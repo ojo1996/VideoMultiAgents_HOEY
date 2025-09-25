@@ -37,7 +37,7 @@ def main():
             base_cfg = yaml.safe_load(f)
 
     for a in args.alphas:
-        out_dir = out_root / f"alpha{a}"
+        out_dir = out_root / f"alpha={a}"
         out_dir.mkdir(parents=True, exist_ok=True)
 
         if base_cfg:
