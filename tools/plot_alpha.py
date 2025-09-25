@@ -58,7 +58,11 @@ def main():
                         errors.append(error)
                     else:
                         errors.append(0)
-                plt.errorbar(alphas, scores, yerr=errors, marker="o", label=f"{ts} (95% CI)", capsize=5)
+                # Format legend with CI info
+                mean_score = scores[0] if len(scores) > 0 else 0
+                error = errors[0] if len(errors) > 0 else 0
+                label = f"{ts} ({mean_score:.3f} ± {error:.3f})"
+                plt.errorbar(alphas, scores, yerr=errors, marker="o", label=label, capsize=5)
             else:
                 plt.plot(h["alpha_task"], h["score"], marker="o", label=ts)
         

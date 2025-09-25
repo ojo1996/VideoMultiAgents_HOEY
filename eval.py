@@ -204,6 +204,16 @@ def main():
         ci_data = per_task.pop("_ci_data", {})
         clean_metrics = {k: v for k, v in per_task.items() if not k.startswith("_")}
         
+        # Task coverage check: ensure every configured task appears in metrics
+        expected_tasks = {t.get("name") for t in tasks}
+        found_tasks = {k for k in clean_metrics.keys() if "/" not in k}  # flat keys only
+        missing_tasks = expected_tasks - found_tasks
+        if missing_tasks:
+            print(f"[warn] missing tasks in {model_dir.name}: {missing_tasks}")
+            # Add null entries for missing tasks
+            for task in missing_tasks:
+                clean_metrics[task] = None
+        
         metrics_path = run_root / model_dir.name / "metrics.json"
         metrics_path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
