@@ -1,0 +1,14 @@
+model:
+  base_ckpt: /path/to/base
+  dtype: float16
+eval:
+  seeds: [1, 2, 3]
+  tasks:
+    - name: coding_mbpp_tiny
+      loader: agent_systems/SWE_agent/main.py
+    - name: math_gsm8k_dev_small
+      loader: agent_systems/Math_agent/main.py
+    - name: mhqa_tiny
+      loader: agent_systems/MHQA_agent/main.py
+metrics: [pass@1, exact_match, tool_success]
+output_dir: results

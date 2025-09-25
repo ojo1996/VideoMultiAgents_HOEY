@@ -1,0 +1,11 @@
+vectors:
+  - name: task_coding
+    index: vectors/tasks/index.json
+    alpha_key: alpha_task
+  - name: tool_bash
+    index: vectors/tools/bash/index.json
+    alpha_key: alpha_bash
+grid:
+  alpha_task: [0.0, 0.1, 0.2, 0.5, 1.0]
+  alpha_bash: [0.0, 0.5, 1.0]
+mode: additive   # or 'multiplicative'
