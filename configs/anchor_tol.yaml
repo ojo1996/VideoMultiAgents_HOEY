@@ -1,0 +1,5 @@
+default_tol: 0.05
+tasks:
+  coding_mbpp_tiny: 0.03
+  math_gsm8k_dev_small: 0.04
+  mhqa_tiny: 0.06

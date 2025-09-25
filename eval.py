@@ -51,10 +51,13 @@ def safe_rename(src: Path, dst: Path):
 def run_eval_for_model(model_dir: Path, tasks: List[Dict[str, str]], dtype: str, device: str, out_root: Path, seeds: Optional[List[int]] = None) -> Dict[str, float]:
     model_name = model_dir.name
     per_task_scores: Dict[str, float] = {}
+    per_task_cis: Dict[str, List[float]] = {}
+    
     for t in tasks:
         task_name = t.get("name")
+        metric_name = t.get("metric", "score")  # Default metric name
         rc = 0
-        # If seeds provided, run once per seed, then average metric
+        # If seeds provided, run once per seed, then average metric and compute CI
         if seeds:
             vals: List[float] = []
             for s in seeds:
@@ -75,7 +78,16 @@ def run_eval_for_model(model_dir: Path, tasks: List[Dict[str, str]], dtype: str,
                         if picked is not None:
                             vals.append(picked)
             if rc == 0 and vals:
-                per_task_scores[f"{task_name}"] = sum(vals) / max(1, len(vals))
+                mean_score = sum(vals) / max(1, len(vals))
+                per_task_scores[f"{task_name}"] = mean_score
+                # Compute 95% CI (simple approximation)
+                if len(vals) > 1:
+                    import statistics
+                    std_err = statistics.stdev(vals) / (len(vals) ** 0.5)
+                    ci_margin = 1.96 * std_err  # 95% CI
+                    per_task_cis[f"{task_name}"] = [max(0, mean_score - ci_margin), min(1, mean_score + ci_margin)]
+                # Also store hierarchical key
+                per_task_scores[f"{task_name}/{metric_name}"] = mean_score
             elif rc != 0:
                 per_task_scores[f"{task_name}"] = float("nan")
             continue
@@ -96,6 +108,10 @@ def run_eval_for_model(model_dir: Path, tasks: List[Dict[str, str]], dtype: str,
                         score = float(v)
                         break
         per_task_scores[f"{task_name}"] = score
+        per_task_scores[f"{task_name}/{metric_name}"] = score
+    
+    # Store CI data for later use
+    per_task_scores["_ci_data"] = per_task_cis
     return per_task_scores
 
 
@@ -146,15 +162,55 @@ def main():
     if args.alpha_json and Path(args.alpha_json).exists():
         alpha_payload = json.loads(Path(args.alpha_json).read_text(encoding="utf-8"))
 
+    # Validate model folders and print discovered alphas
+    model_dirs = []
     for model_dir_str in args.models:
         model_dir = Path(model_dir_str)
+        if not model_dir.exists():
+            print(f"[warn] model folder not found: {model_dir}")
+            continue
+        model_dirs.append(model_dir)
+    
+    if alpha_payload:
+        print("[*] Discovered alphas:")
+        for model_dir in model_dirs:
+            alpha_info = alpha_payload.get(model_dir.name, {})
+            print(f"  {model_dir.name}: {alpha_info}")
+    
+    # Create repro bundle
+    repro_card = {
+        "alpha_settings_json": "alpha_settings.json" if args.alpha_json else None,
+        "eval_config": args.config,
+        "git_commit": None,
+        "models": [str(m) for m in model_dirs],
+        "seeds": seeds,
+        "device": device,
+        "dtype": dtype,
+    }
+    try:
+        import subprocess
+        repro_card["git_commit"] = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    except Exception:
+        pass
+    
+    repro_path = run_root / "repro_card.json"
+    repro_path.write_text(json.dumps(repro_card, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"[ok] wrote repro bundle to {repro_path}")
+
+    for model_dir in model_dirs:
         per_task = run_eval_for_model(model_dir, tasks, dtype=dtype, device=device, out_root=run_root, seeds=seeds)
+        
+        # Extract CI data and clean metrics
+        ci_data = per_task.pop("_ci_data", {})
+        clean_metrics = {k: v for k, v in per_task.items() if not k.startswith("_")}
+        
         metrics_path = run_root / model_dir.name / "metrics.json"
         metrics_path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
             "alpha": (alpha_payload or {}).get(model_dir.name, alpha_payload or {}),
             "seeds": seeds,
-            "metrics": {f"{k}": v for k, v in per_task.items()},
+            "metrics": clean_metrics,
+            "metrics_ci": ci_data,
         }
         metrics_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"[ok] wrote {metrics_path}")
