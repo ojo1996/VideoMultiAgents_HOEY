@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "[*] Setting up AFM-CodeAgent-7B environment."
+PROJECT_DIR=$(pwd)
 
-pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu129
+echo "[*] Setting up AFM-CodeAgent-7B environment"
 
 python -m pip install --upgrade pip wheel setuptools
 pip install "huggingface_hub[cli]>=0.23" accelerate transformers datasets \
@@ -34,4 +34,9 @@ huggingface-cli download PersonalAILab/AFM-CodeAgent-7B-rl \
   --local-dir models/AFM-CodeAgent-7B-rl \
   --local-dir-use-symlinks False
 
-echo "[✓] Setup complete."
+echo "[*] Downloading Qwen2.5-7B-Instruct..."
+huggingface-cli download Qwen/Qwen2.5-7B-Instruct \
+  --local-dir models/Qwen2.5-7B-Instruct \
+  --local-dir-use-symlinks False
+
+echo "[✓] Setup complete. Activate venv anytime with:"
