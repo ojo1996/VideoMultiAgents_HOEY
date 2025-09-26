@@ -105,8 +105,8 @@ def maybe_eval(model_dir: Path, task: Optional[str], device: str = "cuda:0") -> 
 
 def main():
     ap = argparse.ArgumentParser(description="Apply linear weight vectors to a base model and optionally evaluate")
-    ap.add_argument("--base", required=True, help="HF id or local path for base model")
-    ap.add_argument("--vector_root", required=True, help="Root folder that contains vectors/index.json")
+    ap.add_argument("--base", required=False, help="HF id or local path for base model (required for inline mode)")
+    ap.add_argument("--vector_root", required=False, help="Root folder that contains vectors/index.json (required for inline mode)")
     ap.add_argument("--alpha_task", type=float, default=0.0)
     ap.add_argument("--alpha_reason", type=float, default=0.0)
     ap.add_argument("--extra_alpha_json", default=None, help="Optional JSON mapping of tensor_name -> alpha")
@@ -184,6 +184,10 @@ def main():
             print(f"[warn] evaluation exited with code {eval_rc}")
         return
 
+    # Inline mode requires base and vector_root
+    if not args.base or not args.vector_root:
+        raise ValueError("Inline mode requires --base and --vector_root")
+    
     base_model = args.base
     vector_root = Path(args.vector_root)
     index_path = vector_root / "index.json"

@@ -9,6 +9,7 @@ Features:
 import argparse
 import json
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -20,21 +21,30 @@ from typing import List, Optional, Dict
 import yaml
 import tarfile
 
-def run_lm_eval(model_path: Path, task: str, out_dir: Path, dtype: str, device: str, batch_size: str = "1", seed: Optional[int] = None) -> int:
+def run_lm_eval(model_path: Path, task: str, out_dir: Path, dtype: str, device: str,
+                batch_size: str = "1", seed: Optional[int] = None,
+                limit: Optional[int] = None, num_fewshot: Optional[int] = None) -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     cmd = [
         "lm_eval", "--model", "hf",
-        "--model_args", "pretrained=.,dtype=%s,trust_remote_code=True" % dtype,
+        "--model_args", f"pretrained=.,dtype={dtype},trust_remote_code=True",
         "--tasks", task,
         "--device", device,
-        "--batch_size", batch_size,
-        "--gen_kwargs", "max_gen_toks=2048",
+        "--batch_size", str(batch_size),
         "--log_samples",
         "--output_path", str(out_dir),
         "--confirm_run_unsafe_code",
     ]
+    # MC tasks don't need generation; drop the huge token budget to avoid confusion
+    # cmd += ["--gen_kwargs", "max_gen_toks=2048"]
+
+    if num_fewshot is not None:
+        cmd += ["--num_fewshot", str(num_fewshot)]
+    if limit is not None:
+        cmd += ["--limit", str(limit)]
     if seed is not None:
         cmd += ["--seed", str(seed)]
+
     log_path = out_dir / f"lm_eval__{task}.log"
     with open(log_path, "w", encoding="utf-8") as lf:
         lf.write(" ".join(shlex.quote(x) for x in cmd) + "\n")
@@ -47,36 +57,103 @@ def safe_rename(src: Path, dst: Path):
             dst.unlink()
         src.rename(dst)
 
+def parse_metrics_from_log(log_path: Path, task_name: str, metric_name: str) -> Optional[float]:
+    """Parse metrics from lm-eval log file."""
+    if not log_path.exists():
+        return None
+    
+    try:
+        log_content = log_path.read_text(encoding="utf-8")
+        
+        # Look for the results table in the log
+        # Pattern: |hellaswag|      1|none  |     0|acc_norm|↑  | 0.68|±  |0.0952|
+        lines = log_content.split('\n')
+        
+        for line in lines:
+            if '|' in line and task_name in line and '|' in line:
+                # Split by | and look for metric values
+                parts = [p.strip() for p in line.split('|')]
+                if len(parts) >= 7:
+                    # Look for the metric name in the line
+                    if metric_name in line:
+                        # Find the value (usually the 6th or 7th part)
+                        for part in parts:
+                            try:
+                                # Try to extract a float value
+                                if re.match(r'^\d+\.\d+$', part):
+                                    return float(part)
+                            except ValueError:
+                                continue
+        
+        # Fallback: look for any numeric value in lines containing the task
+        for line in lines:
+            if task_name in line and '|' in line:
+                # Extract all numbers from the line
+                numbers = re.findall(r'\d+\.\d+', line)
+                if numbers:
+                    return float(numbers[0])
+        
+        return None
+    except Exception as e:
+        print(f"[warn] Failed to parse log {log_path}: {e}")
+        return None
 
-def run_eval_for_model(model_dir: Path, tasks: List[Dict[str, str]], dtype: str, device: str, out_root: Path, seeds: Optional[List[int]] = None) -> Dict[str, float]:
+
+def run_eval_for_model(model_dir: Path, tasks: List[Dict[str, str]], dtype: str, device: str, out_root: Path, seeds: Optional[List[int]] = None,
+                       global_limit: Optional[int] = None,
+                       global_bs: Optional[int] = None,
+                       global_fs: Optional[int] = None) -> Dict[str, float]:
     model_name = model_dir.name
     per_task_scores: Dict[str, float] = {}
     per_task_cis: Dict[str, List[float]] = {}
     
     for t in tasks:
-        task_name = t.get("name")
-        metric_name = t.get("metric", "score")  # Default metric name
+        task_name   = t.get("name")
+        metric_name = t.get("metric", "score")
+        lm_id       = t.get("lm_eval_id", task_name)
+        limit       = t.get("limit", global_limit)
+        batch_size  = t.get("batch_size", global_bs or 1)
+        fewshot     = t.get("num_fewshot", global_fs)
+
+        print(f"[eval] {lm_id} → fewshot={fewshot} limit={limit} batch_size={batch_size}")
+
         rc = 0
         # If seeds provided, run once per seed, then average metric and compute CI
         if seeds:
             vals: List[float] = []
             for s in seeds:
-                rc = run_lm_eval(model_dir, task_name, out_root / model_name, dtype=dtype, device=device, seed=s)
+                rc = run_lm_eval(model_dir, lm_id, out_root / model_name, dtype=dtype, device=device, seed=s,
+                                 limit=limit, num_fewshot=fewshot, batch_size=str(batch_size))
                 if rc != 0:
                     break
                 results_path = (out_root / model_name) / "results.json"
+                picked = None
+                
+                # Try to read from results.json first
                 if results_path.exists():
-                    data = json.loads(results_path.read_text(encoding="utf-8"))
-                    section = data.get("results", {}).get(task_name)
-                    if isinstance(section, dict):
-                        # pick the first metric ending with ",none"
-                        picked = None
-                        for k, v in section.items():
-                            if k.endswith(",none") and isinstance(v, (int, float)):
-                                picked = float(v)
-                                break
-                        if picked is not None:
-                            vals.append(picked)
+                    try:
+                        data = json.loads(results_path.read_text(encoding="utf-8"))
+                        section = data.get("results", {}).get(task_name)
+                        if isinstance(section, dict):
+                            # Look for the specific metric name first, then fall back to any numeric value
+                            if metric_name in section and isinstance(section[metric_name], (int, float)):
+                                picked = float(section[metric_name])
+                            else:
+                                # Fallback: pick the first metric ending with ",none" or any numeric value
+                                for k, v in section.items():
+                                    if (k.endswith(",none") or k in ["acc", "acc_norm", "exact_match", "f1"]) and isinstance(v, (int, float)):
+                                        picked = float(v)
+                                        break
+                    except Exception as e:
+                        print(f"[warn] Failed to parse results.json: {e}")
+                
+                # If results.json parsing failed, try parsing from log file
+                if picked is None:
+                    log_path = (out_root / model_name) / f"lm_eval__{lm_id}.log"
+                    picked = parse_metrics_from_log(log_path, lm_id, metric_name)
+                
+                if picked is not None:
+                    vals.append(picked)
             if rc == 0 and vals:
                 mean_score = sum(vals) / max(1, len(vals))
                 per_task_scores[f"{task_name}"] = mean_score
@@ -92,21 +169,37 @@ def run_eval_for_model(model_dir: Path, tasks: List[Dict[str, str]], dtype: str,
                 per_task_scores[f"{task_name}"] = float("nan")
             continue
         # single-run path
-        rc = run_lm_eval(model_dir, task_name, out_root / model_name, dtype=dtype, device=device)
+        rc = run_lm_eval(model_dir, lm_id, out_root / model_name, dtype=dtype, device=device,
+                         limit=limit, num_fewshot=fewshot, batch_size=str(batch_size))
         if rc != 0:
             per_task_scores[f"{task_name}"] = float("nan")
             continue
-        # try to read lm-eval results.json and take the first metric ending with ",none"
+        # try to read lm-eval results.json and extract the correct metric
         results_path = (out_root / model_name) / "results.json"
         score = float("nan")
+        
+        # Try to read from results.json first
         if results_path.exists():
-            data = json.loads(results_path.read_text(encoding="utf-8"))
-            section = data.get("results", {}).get(task_name)
-            if isinstance(section, dict):
-                for k, v in section.items():
-                    if k.endswith(",none") and isinstance(v, (int, float)):
-                        score = float(v)
-                        break
+            try:
+                data = json.loads(results_path.read_text(encoding="utf-8"))
+                section = data.get("results", {}).get(task_name)
+                if isinstance(section, dict):
+                    # Look for the specific metric name first, then fall back to any numeric value
+                    if metric_name in section and isinstance(section[metric_name], (int, float)):
+                        score = float(section[metric_name])
+                    else:
+                        # Fallback: pick the first metric ending with ",none" or any numeric value
+                        for k, v in section.items():
+                            if (k.endswith(",none") or k in ["acc", "acc_norm", "exact_match", "f1"]) and isinstance(v, (int, float)):
+                                score = float(v)
+                                break
+            except Exception as e:
+                print(f"[warn] Failed to parse results.json: {e}")
+        
+        # If results.json parsing failed, try parsing from log file
+        if score == float("nan"):
+            log_path = (out_root / model_name) / f"lm_eval__{lm_id}.log"
+            score = parse_metrics_from_log(log_path, lm_id, metric_name) or float("nan")
         per_task_scores[f"{task_name}"] = score
         per_task_scores[f"{task_name}/{metric_name}"] = score
     
@@ -140,6 +233,11 @@ def main():
     seeds = cfg.get("seeds") or cfg.get("eval", {}).get("seeds") or []
     device = args.device or cfg.get("device") or cfg.get("eval", {}).get("device", "cuda:0")
     dtype = args.dtype or cfg.get("dtype") or cfg.get("model", {}).get("dtype", "float16")
+    
+    # Extract global parameters for limits and batch sizes
+    global_limit   = cfg.get("limit") or cfg.get("eval", {}).get("limit")
+    global_bs      = cfg.get("batch_size") or cfg.get("eval", {}).get("batch_size")
+    global_fs      = cfg.get("num_fewshot") or cfg.get("eval", {}).get("num_fewshot")
     # tasks can be a mapping or list
     tasks_block = cfg.get("tasks") or cfg.get("eval", {}).get("tasks", [])
     tasks_cfg: List[Dict[str, str]] = []
@@ -198,7 +296,10 @@ def main():
     print(f"[ok] wrote repro bundle to {repro_path}")
 
     for model_dir in model_dirs:
-        per_task = run_eval_for_model(model_dir, tasks, dtype=dtype, device=device, out_root=run_root, seeds=seeds)
+        per_task = run_eval_for_model(model_dir, tasks, dtype=dtype, device=device, out_root=run_root, seeds=seeds,
+                                      global_limit=global_limit,
+                                      global_bs=global_bs,
+                                      global_fs=global_fs)
         
         # Extract CI data and clean metrics
         ci_data = per_task.pop("_ci_data", {})

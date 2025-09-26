@@ -1,0 +1,10 @@
+seeds: [1]
+device: "mps"
+limit: 25          # ~100 requests on HellaSwag
+batch_size: 8      # drop to 4 if you OOM
+num_fewshot: 0
+
+tasks:
+  hellaswag:
+    lm_eval_id: hellaswag
+    metric: acc_norm

@@ -57,7 +57,7 @@ def main():
         with open(recipe_path, "w", encoding="utf-8") as f:
             yaml.safe_dump(cfg, f, sort_keys=False)
 
-        cmd = ["mergekit-yaml", str(recipe_path), str(out_dir)]
+        cmd = [".venv/bin/mergekit-yaml", str(recipe_path), str(out_dir)]
         if args.extra:
             cmd += args.extra
 
