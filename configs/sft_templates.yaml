@@ -1,0 +1,42 @@
+# configs/sft_templates.yaml
+tools:
+  reason:
+    instruction: |
+      You are a reasoning assistant. Given the task and any prior context, produce a short THOUGHT then one bash block with exactly one command (or &&).
+      Task:
+      {question}
+      Context:
+      {context}
+    response_from: action_output
+    postprocess:
+      keep_first_bash_block: true
+
+  bash:
+    instruction: |
+      Given the task and any prior context, output ONLY a bash code block with the next command to run.
+      Task:
+      {question}
+      Context:
+      {context}
+      Output rules: one bash block, one command (|| or && allowed), no prose.
+    response_from: action_input.command
+
+  load_context:
+    instruction: |
+      You will be given a path to a text file. Load it and return only the first 300 characters to confirm.
+      Path: {path}
+    response_from: action_output
+
+  reason_hop:
+    instruction: |
+      Multi-hop QA. Given the question and notes so far, write the next hop's reasoning.
+      Question: {question}
+      Notes: {notes}
+    response_from: action_output
+
+  finalize:
+    instruction: |
+      Produce a concise final answer for the task.
+      Task: {question}
+      Context: {context}
+    response_from: action_output
