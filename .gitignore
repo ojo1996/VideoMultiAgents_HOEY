@@ -5,3 +5,25 @@ mergekit
 lm-evaluation-harness
 
 venv
+
+# macOS
+.DS_Store
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Training artifacts
+runs/
+data/sft/
+results/
+solution.py
+
+# ignore junk
+.DS_Store
+__pycache__/
+*.pyc
+runs/
+data/sft/
+results/
+solution.py

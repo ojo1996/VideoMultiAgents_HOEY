@@ -1,0 +1,35 @@
+{
+  "task_id": "video_1.traj",
+  "domain": "video",
+  "question": "What did the person take from the fridge and what did they do with it?",
+  "actions": [
+    {
+      "step": 1,
+      "tool": "load_context",
+      "input": {
+        "path": "data/video_samples/toy_captions.txt"
+      },
+      "output": "148 chars"
+    },
+    {
+      "step": 2,
+      "tool": "reason",
+      "input": {
+        "prompt": "Question:\nWhat did the person take from the fridge and what did they do with it?\n\nVideo context (textual):\n---\nA person walks into a kitchen, opens the fridge, takes a milk carton, pours into a glass,\nand sets it on the table. A cat jumps onto a nearby chair.\n---\nAnswer concisely. If needed, cite short evidence in parentheses."
+      },
+      "output": "The person took a milk carton from the fridge, poured it into a glass, and set the glass on the table (takes a milk carton, pours into a glass, sets it on the table)."
+    },
+    {
+      "step": 3,
+      "tool": "finalize",
+      "input": {
+        "prompt": "Question:\nWhat did the person take from the fridge and what did they do with it?\n\nPreliminary notes:\nThe person took a milk carton from the fridge, poured it into a glass, and set the glass on the table (takes a milk carton, pours into a glass, sets it on the table).\n\nWrite the final answer."
+      },
+      "output": "The person took a milk carton from the fridge, poured it into a glass, and set the glass on the table."
+    }
+  ],
+  "final_answer": "The person took a milk carton from the fridge, poured it into a glass, and set the glass on the table.",
+  "metadata": {
+    "source_detected": "video"
+  }
+}
