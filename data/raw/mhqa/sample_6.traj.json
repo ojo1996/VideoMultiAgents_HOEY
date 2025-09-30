@@ -1,0 +1,77 @@
+{
+  "task_id": "mhqa-081e918e",
+  "domain": "mhqa",
+  "question": "What is the largest planet in our solar system?",
+  "actions": [
+    {
+      "step": 1,
+      "tool": "decompose",
+      "input": {
+        "prompt": "Question:\nWhat is the largest planet in our solar system?\n\nReturn 2–5 sub-questions as a numbered list."
+      },
+      "output": "1. What are the names of the planets in our solar system?\n2. Which planet has the greatest diameter?\n3. What is the mass of the largest planet compared to the others?\n4. What are the characteristics that define the largest planet?"
+    },
+    {
+      "step": 2,
+      "tool": "reason_hop",
+      "input": {
+        "hop": "What are the names of the planets in our solar system?",
+        "idx": 1,
+        "prompt": "Original question:\nWhat is the largest planet in our solar system?\n\nPrior hop notes:\n(none)\n\nCurrent sub-question (1/4): What are the names of the planets in our solar system?"
+      },
+      "output": "The planets in our solar system, in order from the Sun, are Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, and Neptune. This list includes all eight recognized planets. \n\nProvisional answer: The planets are Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, and Neptune."
+    },
+    {
+      "step": 3,
+      "tool": "reason_hop",
+      "input": {
+        "hop": "Which planet has the greatest diameter?",
+        "idx": 2,
+        "prompt": "Original question:\nWhat is the largest planet in our solar system?\n\nPrior hop notes:\n- The planets in our solar system, in order from the Sun, are Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, and Neptune. This list includes all eight recognized planets. \n\nProvisional answer: The planets are Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, and Neptune.\n\nCurrent sub-question (2/4): Which planet has the greatest diameter?"
+      },
+      "output": "Jupiter is the largest planet in our solar system, with a diameter of about 86,881 miles (139,822 kilometers), making it significantly larger than all other planets. This confirms that Jupiter has the greatest diameter among the eight recognized planets. \n\nProvisional answer: Jupiter has the greatest diameter."
+    },
+    {
+      "step": 4,
+      "tool": "reason_hop",
+      "input": {
+        "hop": "What is the mass of the largest planet compared to the others?",
+        "idx": 3,
+        "prompt": "Original question:\nWhat is the largest planet in our solar system?\n\nPrior hop notes:\n- The planets in our solar system, in order from the Sun, are Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, and Neptune. This list includes all eight recognized planets. \n\nProvisional answer: The planets are Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, and Neptune.\n- Jupiter is the largest planet in our solar system, with a diameter of about 86,881 miles (139,822 kilometers), making it significantly larger than all other planets. This confirms that Jupiter has the greatest diameter among the eight recognized planets. \n\nProvisional answer: Jupiter has the greatest diameter.\n\nCurrent sub-question (3/4): What is the mass of the largest planet compared to the others?"
+      },
+      "output": "Jupiter, the largest planet in our solar system, has a mass of approximately 1.90 x 10^27 kg, which is more than 300 times the mass of Earth and about 1,000 times the mass of all the other planets combined. This significant mass difference underscores Jupiter's dominance in terms of gravitational influence within the solar system. \n\nProvisional answer: Jupiter's mass is over 300 times that of Earth and more than 1,000 times the mass of all other planets combined."
+    },
+    {
+      "step": 5,
+      "tool": "reason_hop",
+      "input": {
+        "hop": "What are the characteristics that define the largest planet?",
+        "idx": 4,
+        "prompt": "Original question:\nWhat is the largest planet in our solar system?\n\nPrior hop notes:\n- The planets in our solar system, in order from the Sun, are Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, and Neptune. This list includes all eight recognized planets. \n\nProvisional answer: The planets are Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, and Neptune.\n- Jupiter is the largest planet in our solar system, with a diameter of about 86,881 miles (139,822 kilometers), making it significantly larger than all other planets. This confirms that Jupiter has the greatest diameter among the eight recognized planets. \n\nProvisional answer: Jupiter has the greatest diameter.\n- Jupiter, the largest planet in our solar system, has a mass of approximately 1.90 x 10^27 kg, which is more than 300 times the mass of Earth and about 1,000 times the mass of all the other planets combined. This significant mass difference underscores Jupiter's dominance in terms of gravitational influence within the solar system. \n\nProvisional answer: Jupiter's mass is over 300 times that of Earth and more than 1,000 times the mass of all other planets combined.\n\nCurrent sub-question (4/4): What are the characteristics that define the largest planet?"
+      },
+      "output": "The largest planet in our solar system, Jupiter, is defined by its immense size, with a diameter of about 86,881 miles (139,822 kilometers), and its significant mass of approximately 1.90 x 10^27 kg. Additionally, it has a strong gravitational influence, being more than 300 times the mass of Earth and over 1,000 times that of all other planets combined. These characteristics highlight Jupiter's dominance in both size and mass among the planets. \n\nProvisional answer: The largest planet is defined by its size, mass, and gravitational influence."
+    },
+    {
+      "step": 6,
+      "tool": "finalize",
+      "input": {
+        "prompt": "Original question:\nWhat is the largest planet in our solar system?\n\nHop notes in order:\n1. The planets in our solar system, in order from the Sun, are Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, and Neptune. This list includes all eight recognized planets. \n\nProvisional answer: The planets are Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, and Neptune.\n2. Jupiter is the largest planet in our solar system, with a diameter of about 86,881 miles (139,822 kilometers), making it significantly larger than all other planets. This confirms that Jupiter has the greatest diameter among the eight recognized planets. \n\nProvisional answer: Jupiter has the greatest diameter.\n3. Jupiter, the largest planet in our solar system, has a mass of approximately 1.90 x 10^27 kg, which is more than 300 times the mass of Earth and about 1,000 times the mass of all the other planets combined. This significant mass difference underscores Jupiter's dominance in terms of gravitational influence within the solar system. \n\nProvisional answer: Jupiter's mass is over 300 times that of Earth and more than 1,000 times the mass of all other planets combined.\n4. The largest planet in our solar system, Jupiter, is defined by its immense size, with a diameter of about 86,881 miles (139,822 kilometers), and its significant mass of approximately 1.90 x 10^27 kg. Additionally, it has a strong gravitational influence, being more than 300 times the mass of Earth and over 1,000 times that of all other planets combined. These characteristics highlight Jupiter's dominance in both size and mass among the planets. \n\nProvisional answer: The largest planet is defined by its size, mass, and gravitational influence.\n\nWrite the final answer."
+      },
+      "output": "The largest planet in our solar system is Jupiter, with a diameter of about 86,881 miles (139,822 kilometers) and a mass of approximately 1.90 x 10^27 kg."
+    }
+  ],
+  "final_answer": "The largest planet in our solar system is Jupiter, with a diameter of about 86,881 miles (139,822 kilometers) and a mass of approximately 1.90 x 10^27 kg.",
+  "metadata": {
+    "start_ts": 1759267151.1566818,
+    "end_ts": 1759267166.5889106
+  },
+  "reward": {
+    "completion": 0.5,
+    "efficiency": 0.5,
+    "quality": 0.5,
+    "reasoning": 0.525,
+    "multi_hop": 1.0,
+    "total": 0.5025000000000001
+  },
+  "success": true
+}
