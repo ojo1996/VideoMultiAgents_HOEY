@@ -171,6 +171,60 @@ python convert_to_out_traj_format.py "runs/mhqa_*.traj.json"  --domain mhqa  --o
 python convert_to_out_traj_format.py "runs/tau_*.traj.json"   --domain tau   --out_dir data/unified/tau
 ```
 
+#### 5) Building SFT Datasets (per-tool)
+
+**Generate train/val splits per tool:**
+```bash
+python scripts/build_sft_datasets.py \
+  --unified_glob "data/unified/*/*.json" \
+  --templates configs/sft_templates.yaml \
+  --out_dir data/sft
+```
+**Preview the dataset:**
+```bash
+python scripts/preview_sft.py --root data/sft --limit 1
+```
+**Example output (SUMMARY.json):**
+```bash
+{
+  "reason": { "train": 1, "val": 1 },
+  "bash": { "train": 1, "val": 1 },
+  "finalize": { "train": 3, "val": 1 },
+  "reason_hop": { "train": 1, "val": 1 },
+  "load_context": { "train": 1, "val": 1 }
+}
+
+```
+#### 6) TRL Training (per tool)
+
+**Default config:**
+```bash
+configs/trl_defaults.yaml
+```
+**Training logic:**
+```bash
+training/trl_train_tool_sft.py
+```
+**Wrapper script:**
+```bash
+scripts/run_sft.sh
+```
+**Run training:**
+
+```bash
+
+./scripts/run_sft.sh reason   Qwen/Qwen2.5-0.5B
+./scripts/run_sft.sh bash     Qwen/Qwen2.5-0.5B
+./scripts/run_sft.sh finalize Qwen/Qwen2.5-0.5B
+
+```
+**Models are saved under:**
+
+```bash
+
+runs/sft/<tool>/
+
+```
 ---
 
 ### Repo Structure (key paths)
@@ -181,13 +235,23 @@ agent_systems/
   MHQA_agent/         Main.py  Tools.py  __init__.py
   Video_multiagent/   Main.py  Tools.py  __init__.py
   TAU_agent/          Main.py  Tools.py  __init__.py
+configs/
+  trl_defaults.yaml
 convert_to_out_traj_format.py
-runs/                 # raw trajectories from local runs
+scripts/
+  build_sft_datasets.py
+  preview_sft.py
+  run_sft.sh
+training/
+  trl_train_tool_sft.py
+runs/                 # raw + trained outputs
 data/
-  unified/<domain>/   # converted outputs (per domain)
+  unified/<domain>/   # converted unified trajectories
   video_samples/      # toy input for video
-  tau_samples/        # policy/task snippets (optional)
+  tau_samples/        # policy/task snippets
+  sft/                # per-tool train/val splits
 tools/
   trajectory_schema.json
   validate_traj.py
+
 ```
