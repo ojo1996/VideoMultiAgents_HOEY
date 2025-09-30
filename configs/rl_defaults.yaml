@@ -1,0 +1,67 @@
+# RL Training Configuration
+# Configuration for reinforcement learning training on trajectories
+
+# Model settings
+model_name: Qwen/Qwen2.5-0.5B
+out_dir: models/rl
+seed: 42
+
+# Dataset settings
+trajectory_glob: "data/raw/*.traj.json"
+min_reward: 0.0
+max_examples: 1000
+
+# PPO Configuration
+learning_rate: 1.0e-5
+batch_size: 4
+mini_batch_size: 2
+ppo_epochs: 4
+max_grad_norm: 0.5
+target_kl: 0.1
+vf_coef: 0.1
+cliprange: 0.2
+cliprange_value: 0.2
+gamma: 0.99
+lam: 0.95
+
+# Training settings
+num_train_epochs: 3
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 4
+warmup_ratio: 0.1
+logging_steps: 10
+save_steps: 100
+eval_steps: 100
+save_total_limit: 3
+
+# Logging
+log_with: tensorboard
+report_to: ["tensorboard"]
+
+# Domain-specific reward weights
+domain_weights:
+  mhqa:
+    completion: 0.4
+    efficiency: 0.2
+    quality: 0.3
+    reasoning: 0.1
+  video:
+    completion: 0.3
+    efficiency: 0.2
+    quality: 0.4
+    reasoning: 0.1
+  math:
+    completion: 0.5
+    efficiency: 0.1
+    quality: 0.3
+    reasoning: 0.1
+  swe:
+    completion: 0.4
+    efficiency: 0.3
+    quality: 0.2
+    reasoning: 0.1
+  tau:
+    completion: 0.3
+    efficiency: 0.2
+    quality: 0.4
+    reasoning: 0.1

@@ -1,1 +1,18 @@
-{}
+{
+  "reason": {
+    "train": 1,
+    "val": 1
+  },
+  "bash": {
+    "train": 1,
+    "val": 1
+  },
+  "finalize": {
+    "train": 1,
+    "val": 1
+  },
+  "load_context": {
+    "train": 1,
+    "val": 1
+  }
+}

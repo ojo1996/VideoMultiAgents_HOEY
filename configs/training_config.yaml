@@ -1,0 +1,103 @@
+# Comprehensive Training Configuration
+# Configuration for both SFT and RL training on agent trajectories
+
+# Model settings
+model_name: Qwen/Qwen2.5-0.5B
+sft_models_dir: models/sft
+rl_models_dir: models/rl
+
+# Data paths
+raw_glob: "data/raw/*/*.traj.json"
+unified_dir: data/unified
+sft_data_dir: data/sft
+rewards_file: data/rewards/analysis.json
+
+# Agent configuration for trajectory generation
+agents:
+  mhqa:
+    num_trajectories: 20
+    questions:
+      - "Who wrote The Hobbit and what other famous works did they create?"
+      - "What is the capital of France and what is its population?"
+      - "Who was the first person to walk on the moon and when did it happen?"
+      - "What is the largest planet in our solar system and what are its main characteristics?"
+      - "Who painted the Mona Lisa and in which museum is it located?"
+  
+  video:
+    num_trajectories: 15
+    video_context: data/video_samples/toy_captions.txt
+    questions:
+      - "What happens in the first scene of the video?"
+      - "Who are the main characters shown in the video?"
+      - "What is the main action taking place in the video?"
+      - "What objects can you see in the video?"
+      - "What is the setting or location of the video?"
+  
+  math:
+    num_trajectories: 25
+    questions:
+      - "Solve the equation 2x + 5 = 13"
+      - "What is the derivative of x^2 + 3x + 1?"
+      - "Calculate the area of a circle with radius 5"
+      - "What is the value of sin(π/2)?"
+      - "Find the integral of 2x from 0 to 3"
+  
+  swe:
+    num_trajectories: 20
+    questions:
+      - "Write a Python function to calculate the factorial of a number"
+      - "Create a simple web server using Flask"
+      - "Implement a binary search algorithm"
+      - "Write a function to reverse a string"
+      - "Create a class to represent a bank account"
+  
+  tau:
+    num_trajectories: 15
+    questions:
+      - "What is the company policy on remote work?"
+      - "How should I handle a customer complaint about a delayed order?"
+      - "What are the security protocols for accessing sensitive data?"
+      - "What is the procedure for requesting time off?"
+      - "How should I escalate a technical issue to the engineering team?"
+
+# SFT training settings
+tools: ['reason', 'bash', 'finalize', 'decompose', 'reason_hop', 'load_context']
+templates: configs/sft_templates.yaml
+
+# RL training settings
+min_reward: 0.3
+max_examples: 1000
+
+# Domain-specific reward weights
+domain_weights:
+  mhqa:
+    completion: 0.4
+    efficiency: 0.2
+    quality: 0.3
+    reasoning: 0.1
+  video:
+    completion: 0.3
+    efficiency: 0.2
+    quality: 0.4
+    reasoning: 0.1
+  math:
+    completion: 0.5
+    efficiency: 0.1
+    quality: 0.3
+    reasoning: 0.1
+  swe:
+    completion: 0.4
+    efficiency: 0.3
+    quality: 0.2
+    reasoning: 0.1
+  tau:
+    completion: 0.3
+    efficiency: 0.2
+    quality: 0.4
+    reasoning: 0.1
+
+# Evaluation settings
+evaluation:
+  metrics: ['accuracy', 'reward', 'efficiency']
+  test_datasets: ['data/test/*.json']
+  output_dir: results/evaluation
