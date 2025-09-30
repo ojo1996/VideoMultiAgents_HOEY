@@ -6,34 +6,35 @@ BASE="Qwen/Qwen2.5-7B-Instruct"
 SFT="models/AFM-CodeAgent-7B-sft"
 RL="models/AFM-CodeAgent-7B-rl"
 
-ALPHAS=("0.0" "0.3" "0.7" "1.0")  # alpha_task sweep - more points for better curve
-TASK="hellaswag"              # tiny eval task
-DEVICE="cpu"                  # use CPU (7B model too large for MPS)
+ALPHAS=("0.0" "0.2" "0.4" "0.6" "0.8" "1.0")  # More alpha points for better curve
+TASK="hellaswag"              # eval task
+DEVICE="cuda:0"               # use CUDA GPU
 RESULTS_ROOT="results"
 MERGES_DIR="merges"
-EVAL_CFG="configs/eval_debug.yaml"
+EVAL_CFG="configs/eval_runpod.yaml"
 
-# Light but meaningful limits
-DEBUG_LIMIT=50                # ~200 requests total (50 samples × 4 models)
-DEBUG_BATCH=4                 # smaller batch size
-DEBUG_SEEDS="[1]"
+# RunPod-optimized limits
+DEBUG_LIMIT=100               # More samples for better statistics
+DEBUG_BATCH=8                 # Larger batch size for GPU
+DEBUG_SEEDS="[1, 2, 3]"      # Multiple seeds for confidence intervals
 ##################################################
 
-echo "== Safe profile for Apple Silicon =="
-export PYTORCH_ENABLE_MPS_FALLBACK=1
-export OMP_NUM_THREADS=4
+echo "== RunPod GPU Profile =="
+export CUDA_VISIBLE_DEVICES=0
+export OMP_NUM_THREADS=8
 
-# Check MPS availability (informative only)
+# Check CUDA availability
 python - <<'PY'
-import torch, platform
-print("arch:", platform.machine())
-print("MPS built:", torch.backends.mps.is_built())
-print("MPS available:", torch.backends.mps.is_available())
+import torch
+print("CUDA available:", torch.cuda.is_available())
+if torch.cuda.is_available():
+    print("CUDA device:", torch.cuda.get_device_name(0))
+    print("CUDA memory:", torch.cuda.get_device_properties(0).total_memory / 1e9, "GB")
 PY
 
-# Ensure debug eval config exists (idempotent)
+# Ensure RunPod eval config exists
 if [[ ! -f "$EVAL_CFG" ]]; then
-  echo "== Creating $EVAL_CFG (debug profile) =="
+  echo "== Creating $EVAL_CFG (RunPod profile) =="
   mkdir -p "$(dirname "$EVAL_CFG")"
   cat > "$EVAL_CFG" <<EOF
 seeds: $DEBUG_SEEDS
@@ -69,24 +70,21 @@ done
 echo "== Generating alpha_settings.json =="
 python tools/auto_make_alpha_settings.py
 
-echo "== HellaSwag eval on MPS (50 samples × 4 models) =="
+echo "== HellaSwag eval on CUDA (100 samples × 6 models × 3 seeds) =="
 python eval.py \
-  --models "merges/alpha=0.0" "merges/alpha=0.3" "merges/alpha=0.7" "merges/alpha=1.0" \
+  --models "merges/alpha=0.0" "merges/alpha=0.2" "merges/alpha=0.4" "merges/alpha=0.6" "merges/alpha=0.8" "merges/alpha=1.0" \
   --results_root "$RESULTS_ROOT" \
   --config "$EVAL_CFG" \
   --task "$TASK" \
   --device "$DEVICE" \
   --alpha_json alpha_settings.json
 
-# Optional: aggregate + plot (if you added these tools)
-if [[ -f tools/aggregate.py ]]; then
-  echo "== Aggregating results =="
-  python tools/aggregate.py || true
-fi
-if [[ -f tools/plot_alpha.py ]]; then
-  echo "== Plotting alpha curves =="
-  python tools/plot_alpha.py || true
-fi
+# Aggregate + plot
+echo "== Aggregating results =="
+python tools/aggregate.py || true
+
+echo "== Plotting alpha curves =="
+python tools/plot_alpha.py || true
 
 echo "== Bash tool-vector dial (optional) =="
 BASH_VEC="vectors/tools/bash/index.json"
@@ -108,7 +106,7 @@ else
   echo "   To enable: train tiny bash SFT → merge LoRA → extract vector to $BASH_VEC"
 fi
 
-echo "== Done (demo complete) =="
+echo "== Done (RunPod demo complete) =="
 echo "Results under: $RESULTS_ROOT/batch/<timestamp>/ and $RESULTS_ROOT/bash_probe/"
-echo "Total requests: ~200 (50 samples × 4 models)"
+echo "Total requests: ~1800 (100 samples × 6 models × 3 seeds)"
 echo "Check results/plots/ for alpha curve visualizations"

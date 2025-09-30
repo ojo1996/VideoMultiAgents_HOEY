@@ -1,7 +1,7 @@
 seeds: [1]
-device: "mps"
-limit: 25          # ~100 requests on HellaSwag
-batch_size: 8      # drop to 4 if you OOM
+device: "cpu"
+limit: 50          # ~200 requests on HellaSwag
+batch_size: 4      # smaller batch size for MPS
 num_fewshot: 0
 
 tasks:
