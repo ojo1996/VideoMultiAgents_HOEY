@@ -1,0 +1,34 @@
+{
+  "task_id": "tau-1",
+  "domain": "tau",
+  "question": "Customer wants to exchange two delivered items; what must I confirm first?",
+  "actions": [
+    {
+      "step": 1,
+      "tool": "load_context",
+      "input": { "source": "policy_excerpt", "path": "data/tau_samples/retail_policy_excerpt.md" },
+      "output": "Loaded policy: Exchanges allowed within 30 days; items must be unopened or in like-new condition; receipt required."
+    },
+    {
+      "step": 2,
+      "tool": "reason",
+      "input": {
+        "prompt": "Under the policy, identify prerequisite checks before approving an exchange."
+      },
+      "output": "Confirm purchase date (within 30 days); verify receipt; verify condition (unopened / like-new)."
+    },
+    {
+      "step": 3,
+      "tool": "finalize",
+      "input": {
+        "prompt": "Write a concise answer listing what must be confirmed."
+      },
+      "output": "First confirm the purchase date is within 30 days, verify the customer has a receipt, and ensure both items are unopened or in like-new condition."
+    }
+  ],
+  "final_answer": "Confirm it is within 30 days, verify the receipt, and ensure both items are unopened or like-new.",
+  "metadata": {
+    "start_ts": 0.0,
+    "end_ts": 0.0
+  }
+}

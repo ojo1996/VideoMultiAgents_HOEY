@@ -1,0 +1,32 @@
+{
+  "task_id": "mhqa-1",
+  "domain": "mhqa",
+  "question": "Who founded the company that owns Instagram?",
+  "actions": [
+    {
+      "step": 1,
+      "tool": "reason_hop",
+      "input": { "hop": 1, "prompt": "Find the parent company of Instagram." },
+      "output": "Instagram is owned by Meta Platforms, Inc."
+    },
+    {
+      "step": 2,
+      "tool": "reason_hop",
+      "input": { "hop": 2, "prompt": "Who founded Meta Platforms, Inc.?" },
+      "output": "Meta (formerly Facebook) was founded by Mark Zuckerberg with Dustin Moskovitz, Eduardo Saverin, Andrew McCollum, and Chris Hughes."
+    },
+    {
+      "step": 3,
+      "tool": "finalize",
+      "input": {
+        "prompt": "Combine the hops into a single concise answer."
+      },
+      "output": "Meta Platforms (owner of Instagram) was founded by Mark Zuckerberg, with co-founders Dustin Moskovitz, Eduardo Saverin, Andrew McCollum, and Chris Hughes."
+    }
+  ],
+  "final_answer": "Mark Zuckerberg (with Dustin Moskovitz, Eduardo Saverin, Andrew McCollum, and Chris Hughes) founded the company that owns Instagram (Meta).",
+  "metadata": {
+    "start_ts": 0.0,
+    "end_ts": 0.0
+  }
+}
