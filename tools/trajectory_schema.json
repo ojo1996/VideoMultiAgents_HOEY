@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "UnifiedTrajectory",
+  "type": "object",
+  "required": ["task_id", "domain", "actions", "final_answer"],
+  "properties": {
+    "task_id": {"type": "string"},
+    "domain": {"type": "string"},
+    "question": {"type": ["string", "null"]},
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["step", "tool"],
+        "properties": {
+          "step": {"type": "integer"},
+          "tool": {"type": "string"},
+          "input": {},
+          "output": {}
+        }
+      }
+    },
+    "final_answer": {"type": "string"},
+    "metadata": {"type": "object"}
+  }
+}

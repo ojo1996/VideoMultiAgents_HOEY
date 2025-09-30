@@ -1,0 +1,26 @@
+model_name: Qwen/Qwen2.5-0.5B
+out_dir: runs/sft
+tool: bash
+data_root: data/sft
+train_file: train.jsonl
+val_file: val.jsonl
+
+seed: 42
+max_steps: null
+num_train_epochs: 1
+per_device_train_batch_size: 2
+per_device_eval_batch_size: 2
+gradient_accumulation_steps: 4
+learning_rate: 2.0e-5
+lr_scheduler_type: cosine
+warmup_ratio: 0.03
+weight_decay: 0.0
+max_seq_length: 1024
+eval_strategy: steps
+eval_steps: 200
+save_steps: 200
+logging_steps: 20
+bf16: false
+fp16: false
+push_to_hub: false
+gradient_checkpointing: true

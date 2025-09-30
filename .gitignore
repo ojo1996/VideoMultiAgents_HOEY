@@ -39,3 +39,24 @@ results/
 data/generated_results/
 data/tool_sft/
 data/**/cache/
+# macOS
+.DS_Store
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Training artifacts
+runs/
+data/sft/
+results/
+solution.py
+
+# ignore junk
+.DS_Store
+__pycache__/
+*.pyc
+runs/
+data/sft/
+results/
+solution.py
