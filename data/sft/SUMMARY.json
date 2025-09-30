@@ -8,7 +8,11 @@
     "val": 1
   },
   "finalize": {
-    "train": 1,
+    "train": 4,
+    "val": 1
+  },
+  "reason_hop": {
+    "train": 9,
     "val": 1
   },
   "load_context": {

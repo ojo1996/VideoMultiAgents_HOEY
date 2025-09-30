@@ -1,0 +1,47 @@
+[
+  {
+    "file": "data/raw/mhqa/sample_3.traj.json",
+    "task_id": "mhqa-eb270798",
+    "domain": "mhqa",
+    "success": true,
+    "rewards": {
+      "completion": 1.0,
+      "efficiency": 0.6,
+      "quality": 0.7,
+      "reasoning": 0.0,
+      "conciseness": 1.0,
+      "tool_selection": 0.0,
+      "total": 0.73
+    }
+  },
+  {
+    "file": "data/raw/mhqa/sample_2.traj.json",
+    "task_id": "mhqa-cfc3c00f",
+    "domain": "mhqa",
+    "success": false,
+    "rewards": {
+      "completion": 0.5,
+      "efficiency": 1.0,
+      "quality": 0.5,
+      "reasoning": 0.0,
+      "conciseness": 1.0,
+      "tool_selection": 0.0,
+      "total": 0.55
+    }
+  },
+  {
+    "file": "data/raw/mhqa/sample_1.traj.json",
+    "task_id": "mhqa-c9f325d4",
+    "domain": "mhqa",
+    "success": true,
+    "rewards": {
+      "completion": 1.0,
+      "efficiency": 0.6,
+      "quality": 0.7,
+      "reasoning": 0.0,
+      "conciseness": 1.0,
+      "tool_selection": 0.0,
+      "total": 0.73
+    }
+  }
+]
