@@ -1,0 +1,31 @@
+{
+  "task_id": "sample_1.traj",
+  "domain": "math",
+  "question": "Solve the equation 2x + 5 = 13",
+  "actions": [
+    {
+      "step": 1,
+      "tool": "reason",
+      "input": {
+        "prompt": "Question: Solve the equation 2x + 5 = 13"
+      },
+      "output": "I need to solve this step by step using Python."
+    },
+    {
+      "step": 2,
+      "tool": "bash",
+      "input": {
+        "command": "python3 -c 'print(\"Solving: Solve the equation 2x + 5 = 13\")'"
+      },
+      "output": {
+        "returncode": 0,
+        "stdout": "Mock solution for: Solve the equation 2x + 5 = 13",
+        "stderr": ""
+      }
+    }
+  ],
+  "final_answer": "Mock answer for: Solve the equation 2x + 5 = 13",
+  "metadata": {
+    "source_detected": "unknown"
+  }
+}

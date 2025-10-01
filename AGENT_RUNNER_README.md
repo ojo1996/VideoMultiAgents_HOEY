@@ -1,19 +1,31 @@
 # Multi-Agent Runner
 
-This script runs all agent types end-to-end to generate real trajectories for training and evaluation.
+This repository contains scripts to run all agent types end-to-end to generate real trajectories for training and evaluation.
 
-## Quick Start
+## 🚀 Quick Start
 
-### Run All Agents
+### Option 1: Mock LLM (No API Key Required) - RECOMMENDED
 ```bash
-# Run all agents with 10 trajectories each
+# Run all agents with mock LLM responses (no API key needed)
+python run_agents_with_mock.py --num_trajectories 10
+
+# Run only specific agents
+python run_agents_with_mock.py --agents mhqa math swe --num_trajectories 5
+
+# Skip generation, only convert existing trajectories
+python run_agents_with_mock.py --skip_generation
+```
+
+### Option 2: Real LLM (Requires OpenAI API Key)
+```bash
+# Set your OpenAI API key
+export OPENAI_API_KEY="your-api-key-here"
+
+# Run all agents with real LLM responses
 python run_all_agents.py --num_trajectories 10
 
 # Run only specific agents
 python run_all_agents.py --agents mhqa math swe --num_trajectories 5
-
-# Skip generation, only convert existing trajectories
-python run_all_agents.py --skip_generation
 ```
 
 ### Run Individual Agents
@@ -72,6 +84,34 @@ python -m agent_systems.TAU_agent.Main \
 - **Comprehensive**: Covers all 5 agent types (MHQA, Math, SWE, Video, TAU)
 - **Scalable**: Can generate any number of trajectories per agent
 - **Robust**: Includes error handling and progress tracking
+- **Two Modes**: Mock LLM (no API key) or Real LLM (requires OpenAI API key)
+
+## Agent Types
+
+### MHQA (Multi-Hop Question Answering)
+- **Tool-based**: Uses BM25 search, dense search, hybrid merge, and heuristic reader
+- **LLM-based**: Uses language models for reasoning and decomposition
+- **No API Key Required**: Tool-based version works without external dependencies
+
+### Math Agent
+- **Mock Mode**: Generates realistic mock trajectories for testing
+- **Real Mode**: Requires OpenAI API key for actual math problem solving
+- **Features**: Step-by-step reasoning, code execution, validation
+
+### SWE (Software Engineering) Agent
+- **Tool-based**: Uses bash execution and file editing tools
+- **No API Key Required**: Works with actual code execution
+- **Features**: Code generation, testing, debugging
+
+### Video Agent
+- **Mock Mode**: Generates mock video analysis trajectories
+- **Real Mode**: Requires OpenAI API key for actual video understanding
+- **Features**: Video context loading, scene analysis, object detection
+
+### TAU (Text Analysis) Agent
+- **Mock Mode**: Generates mock policy analysis trajectories
+- **Real Mode**: Requires OpenAI API key for actual policy analysis
+- **Features**: Context loading, policy reasoning, decision making
 
 ## Output Structure
 

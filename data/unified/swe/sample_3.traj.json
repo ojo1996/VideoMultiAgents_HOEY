@@ -1,0 +1,59 @@
+{
+  "task_id": "sample_3.traj",
+  "domain": "swe",
+  "question": null,
+  "actions": [
+    {
+      "step": 1,
+      "tool": "unknown",
+      "input": "",
+      "output": ""
+    },
+    {
+      "step": 2,
+      "tool": "unknown",
+      "input": "",
+      "output": ""
+    },
+    {
+      "step": 3,
+      "tool": "unknown",
+      "input": "",
+      "output": ""
+    },
+    {
+      "step": 4,
+      "tool": "unknown",
+      "input": "",
+      "output": ""
+    },
+    {
+      "step": 5,
+      "tool": "unknown",
+      "input": "",
+      "output": ""
+    },
+    {
+      "step": 6,
+      "tool": "unknown",
+      "input": "",
+      "output": ""
+    },
+    {
+      "step": 7,
+      "tool": "unknown",
+      "input": "",
+      "output": ""
+    },
+    {
+      "step": 8,
+      "tool": "unknown",
+      "input": "",
+      "output": ""
+    }
+  ],
+  "final_answer": null,
+  "metadata": {
+    "source_detected": "unknown"
+  }
+}

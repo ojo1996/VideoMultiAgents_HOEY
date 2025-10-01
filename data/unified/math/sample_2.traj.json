@@ -1,0 +1,31 @@
+{
+  "task_id": "sample_2.traj",
+  "domain": "math",
+  "question": "What is the derivative of x^2 + 3x + 1?",
+  "actions": [
+    {
+      "step": 1,
+      "tool": "reason",
+      "input": {
+        "prompt": "Question: What is the derivative of x^2 + 3x + 1?"
+      },
+      "output": "I need to solve this step by step using Python."
+    },
+    {
+      "step": 2,
+      "tool": "bash",
+      "input": {
+        "command": "python3 -c 'print(\"Solving: What is the derivative of x^2 + 3x + 1?\")'"
+      },
+      "output": {
+        "returncode": 0,
+        "stdout": "Mock solution for: What is the derivative of x^2 + 3x + 1?",
+        "stderr": ""
+      }
+    }
+  ],
+  "final_answer": "Mock answer for: What is the derivative of x^2 + 3x + 1?",
+  "metadata": {
+    "source_detected": "unknown"
+  }
+}

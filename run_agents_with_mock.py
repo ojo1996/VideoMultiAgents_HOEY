@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Comprehensive Multi-Agent Trajectory Generation
-Runs all agent types end-to-end with real datasets and questions
+Run agents with mock LLM responses for testing
+This allows running all agents without requiring OpenAI API keys
 """
 
 import os
@@ -50,10 +50,9 @@ def create_directories():
     print("✅ All directories created")
 
 def generate_mhqa_trajectories(num_trajectories: int = 10):
-    """Generate MHQA trajectories using both LLM and tool-based agents."""
-    print(f"\n🎯 Generating {num_trajectories} MHQA Trajectories")
+    """Generate MHQA trajectories using tool-based agent (no API key needed)."""
+    print(f"\n🎯 Generating {num_trajectories} MHQA Trajectories (Tool-based)")
     
-    # Questions from config
     questions = [
         "Who wrote The Hobbit and what other famous works did they create?",
         "What is the capital of France and what is its population?",
@@ -69,22 +68,8 @@ def generate_mhqa_trajectories(num_trajectories: int = 10):
     
     trajectory_files = []
     
-    # Generate with LLM-based MHQA agent
-    for i, question in enumerate(questions[:num_trajectories//2]):
-        output_file = f"data/raw/mhqa/llm_sample_{i+1}.traj.json"
-        
-        success = run_command([
-            "python", "-m", "agent_systems.MHQA_agent.Main",
-            "--question", question,
-            "--out", output_file
-        ], f"MHQA LLM Agent - Question {i+1}")
-        
-        if success and os.path.exists(output_file):
-            trajectory_files.append(output_file)
-            print(f"✅ Generated LLM trajectory: {output_file}")
-    
-    # Generate with tool-based MHQA agent
-    for i, question in enumerate(questions[num_trajectories//2:num_trajectories]):
+    # Generate with tool-based MHQA agent (no API key needed)
+    for i, question in enumerate(questions[:num_trajectories]):
         output_file = f"data/raw/mhqa/tool_sample_{i+1}.traj.json"
         vectors_file = f"data/generated_results/mhqa_vectors_{i+1}.json"
         
@@ -102,8 +87,8 @@ def generate_mhqa_trajectories(num_trajectories: int = 10):
     return trajectory_files
 
 def generate_math_trajectories(num_trajectories: int = 10):
-    """Generate Math agent trajectories."""
-    print(f"\n🧮 Generating {num_trajectories} Math Trajectories")
+    """Generate Math agent trajectories with mock LLM."""
+    print(f"\n🧮 Generating {num_trajectories} Math Trajectories (Mock LLM)")
     
     questions = [
         "Solve the equation 2x + 5 = 13",
@@ -120,18 +105,43 @@ def generate_math_trajectories(num_trajectories: int = 10):
     
     trajectory_files = []
     
+    # Create mock environment for Math agent
+    mock_env = os.environ.copy()
+    mock_env['OPENAI_API_KEY'] = 'mock-key-for-testing'
+    
     for i, question in enumerate(questions[:num_trajectories]):
         output_file = f"data/raw/math/sample_{i+1}.traj.json"
         
-        success = run_command([
-            "python", "-m", "agent_systems.Math_agent.Main",
-            "--question", question,
-            "--out", output_file
-        ], f"Math Agent - Question {i+1}")
+        # Create a simple mock trajectory for Math agent
+        mock_trajectory = {
+            "task_id": f"math-{i+1}",
+            "domain": "math",
+            "question": question,
+            "actions": [
+                {
+                    "tool": "reason",
+                    "input": {"prompt": f"Question: {question}"},
+                    "output": "I need to solve this step by step using Python."
+                },
+                {
+                    "tool": "bash",
+                    "input": {"command": f"python3 -c 'print(\"Solving: {question}\")'"},
+                    "output": {"returncode": 0, "stdout": f"Mock solution for: {question}", "stderr": ""}
+                }
+            ],
+            "final_answer": f"Mock answer for: {question}",
+            "reward": {"total": 0.8, "completion": 1.0, "efficiency": 0.6, "quality": 0.8, "reasoning": 0.8},
+            "success": True,
+            "metadata": {"start_ts": 1234567890.0}
+        }
         
-        if success and os.path.exists(output_file):
-            trajectory_files.append(output_file)
-            print(f"✅ Generated Math trajectory: {output_file}")
+        # Save mock trajectory
+        os.makedirs(os.path.dirname(output_file), exist_ok=True)
+        with open(output_file, 'w') as f:
+            json.dump(mock_trajectory, f, indent=2)
+        
+        trajectory_files.append(output_file)
+        print(f"✅ Generated Math trajectory: {output_file}")
     
     return trajectory_files
 
@@ -170,8 +180,8 @@ def generate_swe_trajectories(num_trajectories: int = 10):
     return trajectory_files
 
 def generate_video_trajectories(num_trajectories: int = 5):
-    """Generate Video agent trajectories."""
-    print(f"\n🎥 Generating {num_trajectories} Video Trajectories")
+    """Generate Video agent trajectories with mock LLM."""
+    print(f"\n🎥 Generating {num_trajectories} Video Trajectories (Mock LLM)")
     
     questions = [
         "What happens in the first scene of the video?",
@@ -186,22 +196,43 @@ def generate_video_trajectories(num_trajectories: int = 5):
     for i, question in enumerate(questions[:num_trajectories]):
         output_file = f"data/raw/video/sample_{i+1}.traj.json"
         
-        success = run_command([
-            "python", "-m", "agent_systems.Video_multiagent.Main",
-            "--video_ctx", "data/video_samples/toy_captions.txt",
-            "--question", question,
-            "--out", output_file
-        ], f"Video Agent - Question {i+1}")
+        # Create mock trajectory for Video agent
+        mock_trajectory = {
+            "task_id": f"video-{i+1}",
+            "domain": "video",
+            "question": question,
+            "video_context": "Mock video context for testing",
+            "actions": [
+                {
+                    "tool": "load_context",
+                    "input": {"video_ctx": "data/video_samples/toy_captions.txt"},
+                    "output": "Loaded video context successfully"
+                },
+                {
+                    "tool": "reason",
+                    "input": {"prompt": f"Question: {question}"},
+                    "output": f"Based on the video context, I can analyze: {question}"
+                }
+            ],
+            "final_answer": f"Mock video analysis for: {question}",
+            "reward": {"total": 0.7, "completion": 1.0, "efficiency": 0.5, "quality": 0.7, "reasoning": 0.6},
+            "success": True,
+            "metadata": {"start_ts": 1234567890.0}
+        }
         
-        if success and os.path.exists(output_file):
-            trajectory_files.append(output_file)
-            print(f"✅ Generated Video trajectory: {output_file}")
+        # Save mock trajectory
+        os.makedirs(os.path.dirname(output_file), exist_ok=True)
+        with open(output_file, 'w') as f:
+            json.dump(mock_trajectory, f, indent=2)
+        
+        trajectory_files.append(output_file)
+        print(f"✅ Generated Video trajectory: {output_file}")
     
     return trajectory_files
 
 def generate_tau_trajectories(num_trajectories: int = 5):
-    """Generate TAU agent trajectories."""
-    print(f"\n📋 Generating {num_trajectories} TAU Trajectories")
+    """Generate TAU agent trajectories with mock LLM."""
+    print(f"\n📋 Generating {num_trajectories} TAU Trajectories (Mock LLM)")
     
     questions = [
         "How should I handle a customer complaint about a delayed order?",
@@ -216,17 +247,38 @@ def generate_tau_trajectories(num_trajectories: int = 5):
     for i, question in enumerate(questions[:num_trajectories]):
         output_file = f"data/raw/tau/sample_{i+1}.traj.json"
         
-        success = run_command([
-            "python", "-m", "agent_systems.TAU_agent.Main",
-            "--question", question,
-            "--subdomain", "retail",
-            "--context", "data/tau_samples/retail_policy_excerpt.md",
-            "--out", output_file
-        ], f"TAU Agent - Question {i+1}")
+        # Create mock trajectory for TAU agent
+        mock_trajectory = {
+            "task_id": f"tau-{i+1}",
+            "domain": "tau",
+            "question": question,
+            "subdomain": "retail",
+            "context": "Mock policy context for testing",
+            "actions": [
+                {
+                    "tool": "load_context",
+                    "input": {"context": "data/tau_samples/retail_policy_excerpt.md"},
+                    "output": "Loaded policy context successfully"
+                },
+                {
+                    "tool": "reason",
+                    "input": {"prompt": f"Question: {question}"},
+                    "output": f"According to the policy, here's how to handle: {question}"
+                }
+            ],
+            "final_answer": f"Mock policy response for: {question}",
+            "reward": {"total": 0.8, "completion": 1.0, "efficiency": 0.7, "quality": 0.8, "reasoning": 0.8},
+            "success": True,
+            "metadata": {"start_ts": 1234567890.0}
+        }
         
-        if success and os.path.exists(output_file):
-            trajectory_files.append(output_file)
-            print(f"✅ Generated TAU trajectory: {output_file}")
+        # Save mock trajectory
+        os.makedirs(os.path.dirname(output_file), exist_ok=True)
+        with open(output_file, 'w') as f:
+            json.dump(mock_trajectory, f, indent=2)
+        
+        trajectory_files.append(output_file)
+        print(f"✅ Generated TAU trajectory: {output_file}")
     
     return trajectory_files
 
@@ -257,7 +309,7 @@ def convert_trajectories_to_unified(domain: str, trajectory_files: List[str]):
     return unified_files
 
 def main():
-    parser = argparse.ArgumentParser(description="Comprehensive Multi-Agent Trajectory Generation")
+    parser = argparse.ArgumentParser(description="Run Multi-Agent Trajectory Generation with Mock LLM")
     parser.add_argument("--num_trajectories", type=int, default=10, help="Number of trajectories per agent")
     parser.add_argument("--agents", nargs="+", default=["mhqa", "math", "swe", "video", "tau"], 
                        help="Which agents to run")
@@ -265,7 +317,7 @@ def main():
     parser.add_argument("--skip_conversion", action="store_true", help="Skip trajectory conversion")
     args = parser.parse_args()
     
-    print("🚀 Comprehensive Multi-Agent Trajectory Generation")
+    print("🚀 Multi-Agent Trajectory Generation (Mock LLM)")
     print("=" * 60)
     
     # Check environment
